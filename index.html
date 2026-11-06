@@ -1,0 +1,3681 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f14">
+<meta name="description" content="Warring States Ruler - 戦国王 : a pixel-art turn-based strategy game (nation building + tactical battles) for desktop and phone.">
+<title>戦国王 Warring States Ruler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
+<style>
+/* ============================================================
+   戦国王 Warring States Ruler  ―  ピクセルアート UI
+   横長画面前提（スマホは横持ち）。戦略画面と戦闘画面は完全に別レイヤー。
+   ============================================================ */
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  color-scheme:dark;
+  --pix:"DotGothic16","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  --ui:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,-apple-system,sans-serif;
+  --ink:#080b10; --panel:#131a24; --panel2:#1a2431; --line:#3b4c60; --line2:#26313f;
+  --gold:#e6c068; --gold2:#a8823c; --text:#e9e6dd; --muted:#9aabbf; --danger:#e0685c; --ok:#68c98a;
+}
+html,body{height:100%;-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:
+    radial-gradient(ellipse at 50% -10%,#1d2735 0,#101721 45%,#070a0f 82%),
+    repeating-linear-gradient(0deg,rgba(255,255,255,.014) 0 2px,transparent 2px 4px),
+    var(--ink);
+  color:var(--text);font-family:var(--ui);
+  overflow:hidden;overscroll-behavior:none;touch-action:manipulation;
+  -webkit-user-select:none;user-select:none;
+}
+button,select,input{font-family:inherit}
+button{
+  font-size:12px;font-weight:700;color:#f1eee4;cursor:pointer;min-height:34px;padding:6px 9px;
+  background:linear-gradient(180deg,#2a3949,#1b2531);border:2px solid #4a5f76;border-radius:0;
+  box-shadow:inset 2px 2px 0 rgba(255,255,255,.10),inset -2px -2px 0 rgba(0,0,0,.42),0 2px 0 rgba(0,0,0,.5);
+  image-rendering:pixelated;
+}
+button:active{transform:translateY(2px);box-shadow:inset 2px 2px 0 rgba(0,0,0,.4)}
+button[disabled]{opacity:.38;cursor:default;box-shadow:inset 2px 2px 0 rgba(255,255,255,.05)}
+button.pri{background:linear-gradient(180deg,#7d5c22,#5a3f16);border-color:#d8b25a}
+button.go{background:linear-gradient(180deg,#3c7f4f,#245634);border-color:#7fc491}
+button.warn{background:linear-gradient(180deg,#8a3c33,#5d241e);border-color:#d08a80}
+button.mini{font-size:10.5px;font-weight:600;min-height:28px;padding:4px 7px;background:#182231;border-color:#39485c}
+button.mini.on{background:#3d6545;border-color:#a6c58e;color:#fff}
+button.tiny{font-size:10px;min-height:24px;padding:3px 6px;background:#16202c;border-color:#33425a}
+select{
+  font-size:11px;color:#e6e2d6;background:#182231;border:2px solid #3b4c60;border-radius:0;
+  padding:4px 4px;min-height:30px;box-shadow:inset 2px 2px 0 rgba(0,0,0,.35);
+}
+.spacer{flex:1 1 auto}
+.pix{font-family:var(--pix)}
+.num{font-family:var(--pix);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+
+/* ---------- 縦持ち時の回転促し ---------- */
+#rotate{
+  position:fixed;inset:0;z-index:60;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  background:radial-gradient(ellipse at 50% 30%,#1b2532,#0a0e14 70%);text-align:center;padding:20px;
+}
+#rotate .phone{
+  width:96px;height:52px;border:3px solid var(--gold);position:relative;animation:sway 2.2s ease-in-out infinite;
+  box-shadow:inset -2px -2px 0 rgba(0,0,0,.5),0 0 0 3px rgba(230,192,104,.12);
+}
+#rotate .phone::after{content:"";position:absolute;inset:6px;background:repeating-linear-gradient(90deg,#2d3d4f 0 4px,#1b2634 4px 8px)}
+@keyframes sway{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(84deg)}}
+#rotate h2{font-family:var(--pix);font-size:16px;margin:0;color:var(--gold)}
+#rotate p{margin:0;font-size:12px;color:#a9b8c9;line-height:1.6}
+@media (orientation:portrait){
+  body:not(.force) #rotate{display:flex}
+  body:not(.force) #app{display:none}
+}
+
+/* ---------- 全体 ---------- */
+#app{display:flex;flex-direction:column;height:100dvh;height:100svh;position:relative}
+.screen{display:none;flex:1 1 auto;min-height:0;flex-direction:column}
+.screen.on{display:flex}
+.hidden{display:none!important}
+
+/* ---------- 上HUD / 下バー ---------- */
+.topbar{
+  flex:0 0 auto;display:flex;gap:5px;align-items:center;flex-wrap:nowrap;
+  padding:4px 8px;padding-top:calc(4px + env(safe-area-inset-top));
+  background:linear-gradient(180deg,#16202c,#0e151f);border-bottom:2px solid var(--line);
+}
+.chipbox{display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--muted);white-space:nowrap}
+.chipbox b{font-family:var(--pix);font-size:13px;color:#f2edda;font-weight:400}
+.chipbox.bad b{color:var(--danger)}
+.chipbox.good b{color:var(--ok)}
+.tag{font-family:var(--pix);font-size:11px;padding:2px 6px;border:2px solid var(--line);color:#e7dfc6;background:#182231;white-space:nowrap}
+.bar{
+  flex:0 0 auto;display:flex;gap:5px;align-items:center;flex-wrap:wrap;padding:5px 8px;
+  padding-bottom:calc(5px + env(safe-area-inset-bottom));
+  background:linear-gradient(180deg,#141d28,#0b1119);border-top:2px solid var(--line);
+}
+.bar .lbl{font-size:10px;color:var(--muted);white-space:nowrap}
+
+/* ---------- タイトル画面 ---------- */
+#scrTitle{align-items:stretch;justify-content:flex-start;overflow:auto}
+#titleIn{flex:1 1 auto;display:grid;grid-template-columns:minmax(160px,30%) 1fr;gap:8px;padding:8px;min-height:0}
+#titleArt{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:6px;
+  background:linear-gradient(160deg,#1c2735,#101720);border:2px solid var(--line);position:relative;overflow:hidden;
+}
+#titleArt canvas{image-rendering:pixelated;width:100%;max-width:300px;height:auto}
+#titleArt h1{font-family:var(--pix);margin:0;font-size:clamp(18px,4.4vh,34px);color:#f6e7c0;letter-spacing:.06em;text-shadow:3px 3px 0 #000,0 0 12px rgba(230,192,104,.25)}
+#titleArt .sub{font-family:var(--pix);font-size:11px;color:#c8b487;letter-spacing:.14em}
+#titleArt .ver{position:absolute;right:6px;bottom:4px;font-size:9px;color:#6c7f94}
+#titleForm{display:flex;flex-direction:column;gap:6px;min-width:0;overflow:auto;padding:6px 8px;background:linear-gradient(160deg,#161f2b,#0f151e);border:2px solid var(--line)}
+#titleForm h2{font-family:var(--pix);margin:0 0 2px;font-size:13px;color:var(--gold)}
+#statePick{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:5px}
+button.statecard{display:flex;align-items:center;gap:6px;text-align:left;padding:5px 6px;min-height:40px;font-size:11px}
+button.statecard .dot{width:12px;height:12px;flex:0 0 auto;border:2px solid #0c1016}
+button.statecard .nm{font-family:var(--pix);font-size:13px;color:#f3ecd8}
+button.statecard .cap{display:block;font-size:9.5px;color:#93a5bb;font-weight:500}
+button.statecard.sel{background:linear-gradient(180deg,#6f5220,#4a3514);border-color:var(--gold)}
+#titleBtns{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+#titleBtns button{flex:1 1 120px}
+#titleOpt{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:10.5px;color:var(--muted)}
+#titleNote{font-size:10px;color:#7f92a8;line-height:1.5;margin:2px 0 0}
+
+/* ---------- 戦略（国政）画面 ---------- */
+#campMain{flex:1 1 auto;display:grid;grid-template-columns:minmax(112px,15%) minmax(0,1fr) minmax(150px,25%);gap:6px;padding:6px;min-height:0}
+.pane{background:linear-gradient(165deg,#151f2b,#0e141d);border:2px solid var(--line2);min-height:0;display:flex;flex-direction:column}
+.pane h3{
+  font-family:var(--pix);font-size:11px;margin:0;padding:4px 6px;color:#e8d5a4;background:#1a2533;
+  border-bottom:2px solid var(--line2);letter-spacing:.05em;display:flex;gap:4px;align-items:center;
+}
+.pane .body{flex:1 1 auto;min-height:0;overflow:auto;padding:5px 6px;font-size:11px;line-height:1.5}
+.pane .body::-webkit-scrollbar{width:7px}
+.pane .body::-webkit-scrollbar-thumb{background:#33455c}
+#mapWrap{position:relative;background:#0b1016;border:2px solid var(--line2);min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#mapc{image-rendering:pixelated;touch-action:none;display:block;cursor:crosshair}
+#mapHint{position:absolute;left:0;right:0;bottom:0;font-size:9.5px;color:#9fb1c4;background:linear-gradient(rgba(8,12,18,0),rgba(8,12,18,.86));padding:3px 6px;text-align:center;pointer-events:none}
+#mapTip{
+  position:absolute;z-index:5;pointer-events:none;display:none;max-width:230px;
+  background:#101923;border:2px solid var(--line);padding:5px 7px;font-size:10.5px;line-height:1.5;color:#dbe3ee;
+  box-shadow:0 6px 18px rgba(0,0,0,.6)
+}
+#mapTip b{font-family:var(--pix);color:#f2e6c4;font-weight:400}
+.rowline{display:flex;justify-content:space-between;gap:6px;padding:2px 0;border-bottom:1px dotted #26313f;font-size:11px}
+.rowline span{color:var(--muted)}
+.rowline b{font-family:var(--pix);font-weight:400;font-size:12px;color:#eee5cd}
+.wrow{display:flex;align-items:center;gap:5px;padding:3px 0;font-size:11px;border-bottom:1px dotted #242f3d}
+.wrow .dot{width:10px;height:10px;flex:0 0 auto;border:2px solid #0b0f14}
+.wrow .nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wrow .st{font-size:9.5px;font-family:var(--pix);padding:1px 4px;border:1px solid #3a4b60;color:#cdd8e6;white-space:nowrap}
+.st.war{color:#ffb1a4;border-color:#8c4038;background:#2a1614}
+.st.peace{color:#a9bdd2}
+.st.ally{color:#9fe0b4;border-color:#3f7a52;background:#152718}
+.meter{height:7px;background:#0a0f16;border:1px solid #2b3a4c;position:relative;overflow:hidden}
+.meter>b{display:block;height:100%}
+.meter.gold>b{background:linear-gradient(90deg,#8a6a24,#e9c873)}
+.meter.blue>b{background:linear-gradient(90deg,#2b5f86,#79c4ec)}
+.meter.green>b{background:linear-gradient(90deg,#2c6b45,#79cf96)}
+.meter.red>b{background:linear-gradient(90deg,#82352e,#e08a7c)}
+#cityAct{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin-top:5px}
+#cityAct button{font-size:10.5px;min-height:30px;padding:4px 4px;text-align:left;line-height:1.2}
+#cityAct button i{display:block;font-style:normal;font-size:9px;color:#c8b487;font-weight:600}
+.logline{font-size:10.5px;line-height:1.45;color:#b9c8d8;padding:2px 0;border-bottom:1px dotted #212c39}
+.logline:first-child{color:#eaf0f7}
+.logline .t{font-family:var(--pix);font-size:9.5px;color:#7d8fa4;margin-right:4px}
+
+/* ---------- 戦闘画面 ---------- */
+#batMain{flex:1 1 auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(140px,23%);gap:6px;padding:6px;min-height:0}
+#batSides{flex:1 1 auto;display:flex;gap:6px;align-items:center;min-width:0;flex-wrap:nowrap;overflow:hidden}
+.side{flex:1 1 0;min-width:0;max-width:280px;font-size:10px;line-height:1.3}
+.side .nm{font-family:var(--pix);font-size:11.5px;display:flex;gap:5px;align-items:center;white-space:nowrap;overflow:hidden}
+.side .nm .dot{width:10px;height:10px;border:2px solid #0b0f14;flex:0 0 auto}
+.side .mini{display:flex;gap:5px;color:var(--muted);font-size:9.5px;margin:2px 0 1px;white-space:nowrap}
+.side .mini b{font-family:var(--pix);color:#eee2c4;font-weight:400}
+#batMid{flex:0 0 auto;text-align:center;min-width:74px}
+#batTurn{font-family:var(--pix);font-size:13px;color:#f4dfa4;white-space:nowrap}
+#batPhase{font-size:9.5px;color:#9fb1c4;white-space:nowrap}
+#wrapOuter{flex:1 1 auto;min-height:0;position:relative}
+#wrap{position:absolute;inset:0;display:flex;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:2px;scrollbar-width:thin;scrollbar-color:#3c5b88 transparent}
+#wrap.fit{align-items:center;justify-content:center}
+#wrap::-webkit-scrollbar{width:8px;height:8px}
+#wrap::-webkit-scrollbar-thumb{background:#33455c}
+#board{flex:0 0 auto;display:grid;gap:2px;padding:5px;background:#141c26;border:2px solid #46596e;box-shadow:0 10px 26px rgba(0,0,0,.55)}
+#scrollHint{position:absolute;left:0;right:0;bottom:0;height:22px;display:none;align-items:flex-end;justify-content:center;padding-bottom:3px;font-size:10px;font-weight:700;color:#dbe6f4;text-shadow:0 1px 3px #000;background:linear-gradient(rgba(9,13,19,0),rgba(9,13,19,.85));pointer-events:none}
+body.scrolling #scrollHint{display:flex}
+.cell{
+  position:relative;width:var(--cell,34px);height:var(--cell,34px);cursor:pointer;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;image-rendering:pixelated;
+  background-size:var(--cell,34px) var(--cell,34px);
+}
+.cell.t-plain{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Crect width='8' height='8' fill='%2356643f'/%3E%3Crect x='1' y='2' width='1' height='1' fill='%2366764c'/%3E%3Crect x='5' y='5' width='1' height='1' fill='%234b5a37'/%3E%3Crect x='3' y='6' width='1' height='1' fill='%2368784d'/%3E%3Crect x='6' y='1' width='1' height='1' fill='%234f5e39'/%3E%3C/svg%3E")}
+.cell.t-forest{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Crect width='8' height='8' fill='%23293f2b'/%3E%3Crect x='1' y='1' width='2' height='3' fill='%233f5c39'/%3E%3Crect x='5' y='3' width='2' height='3' fill='%2348663d'/%3E%3Crect x='2' y='4' width='1' height='2' fill='%2322352a'/%3E%3Crect x='6' y='6' width='1' height='1' fill='%23546e42'/%3E%3Crect x='0' y='7' width='8' height='1' fill='%23223127'/%3E%3C/svg%3E")}
+.cell.t-mountain{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Crect width='8' height='8' fill='%234a4842'/%3E%3Cpath d='M0 8 L3 1 L5 5 L6 3 L8 8 Z' fill='%236e6a5e'/%3E%3Cpath d='M3 1 L4 3 L2 4 Z' fill='%2396917f'/%3E%3Crect x='0' y='7' width='8' height='1' fill='%2334332e'/%3E%3C/svg%3E")}
+.cell.t-water{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Crect width='8' height='8' fill='%23265571'/%3E%3Crect x='0' y='2' width='3' height='1' fill='%23518bab'/%3E%3Crect x='4' y='5' width='3' height='1' fill='%23437d9d'/%3E%3Crect x='1' y='6' width='2' height='1' fill='%235292b3'/%3E%3Crect x='0' y='7' width='8' height='1' fill='%231b4058'/%3E%3C/svg%3E");cursor:default}
+.cell.t-wall{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Crect width='8' height='8' fill='%235c5546'/%3E%3Crect x='0' y='0' width='8' height='2' fill='%237b7360'/%3E%3Crect x='1' y='0' width='1' height='1' fill='%23494335'/%3E%3Crect x='4' y='0' width='1' height='1' fill='%23494335'/%3E%3Crect x='0' y='3' width='8' height='1' fill='%23463f33'/%3E%3Crect x='2' y='4' width='3' height='3' fill='%236b6350'/%3E%3Crect x='0' y='7' width='8' height='1' fill='%23332e26'/%3E%3C/svg%3E");cursor:default}
+.cell.t-village{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Crect width='8' height='8' fill='%235b6b41'/%3E%3Crect x='1' y='4' width='3' height='3' fill='%23a8895a'/%3E%3Cpath d='M1 4 L2.5 2 L4 4 Z' fill='%2382653f'/%3E%3Crect x='5' y='5' width='2' height='2' fill='%238f7a4c'/%3E%3Crect x='0' y='7' width='8' height='1' fill='%23414d2f'/%3E%3C/svg%3E")}
+.cell.t-base{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Crect width='8' height='8' fill='%234e4a41'/%3E%3Crect x='1' y='3' width='6' height='4' fill='%23877c62'/%3E%3Cpath d='M1 3 L4 1 L7 3 Z' fill='%23a3936f'/%3E%3Crect x='3' y='4' width='2' height='3' fill='%235d5443'/%3E%3Crect x='0' y='0' width='1' height='8' fill='%233a4152'/%3E%3C/svg%3E")}
+.cell.t-gate{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Crect width='8' height='8' fill='%2357603f'/%3E%3Crect x='2' y='1' width='4' height='6' fill='%236c6450'/%3E%3Crect x='3' y='3' width='2' height='4' fill='%23463f33'/%3E%3Crect x='2' y='1' width='4' height='1' fill='%238a8067'/%3E%3C/svg%3E")}
+.cell.own-p{box-shadow:inset 0 0 0 2px rgba(240,214,140,.75)}
+.cell.own-e{box-shadow:inset 0 0 0 2px rgba(224,120,104,.7)}
+.cell.hl-move{outline:2px solid #63d98d;outline-offset:-2px;background-color:rgba(99,217,141,.16)}
+.cell.hl-hit{outline:2px solid #f2c14e;outline-offset:-2px;background-color:rgba(242,193,78,.18)}
+.cell.hl-skill{outline:2px solid #7fd4ff;outline-offset:-2px;background-color:rgba(127,212,255,.18)}
+.cell.sel{box-shadow:inset 0 0 0 2px #fff3c4,0 0 0 2px #1a1200}
+.terr{position:absolute;top:1px;left:2px;font-family:var(--pix);font-size:calc(var(--cell,34px)*.26);color:#fff;opacity:.55;text-shadow:1px 1px 0 rgba(0,0,0,.85);pointer-events:none}
+.chip{position:absolute;inset:2%;display:flex;align-items:center;justify-content:center;z-index:2}
+.chip .spr{width:96%;height:96%;image-rendering:pixelated;filter:drop-shadow(1px 2px 0 rgba(0,0,0,.55))}
+.chip.spent{filter:grayscale(.7) brightness(.8);opacity:.72}
+.hpb{position:absolute;left:6%;right:6%;bottom:5%;height:12%;min-height:3px;background:#080d14;border:1px solid rgba(0,0,0,.6);z-index:3}
+.hpb>b{display:block;height:100%;background:#63d9a0}
+.hpb>b.low{background:#f08a7a}
+.gen{position:absolute;top:0;right:1px;font-size:calc(var(--cell,34px)*.3);z-index:4;text-shadow:1px 1px 0 #000;pointer-events:none}
+.fx{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--pix);font-size:calc(var(--cell,34px)*.42);color:#fff;text-shadow:0 0 6px #000,2px 2px 0 #000;pointer-events:none;animation:pop .62s ease-out forwards;z-index:6}
+@keyframes pop{0%{transform:translateY(6px) scale(.7);opacity:0}25%{opacity:1}100%{transform:translateY(-14px) scale(1.15);opacity:0}}
+#batPanel .unitcard{display:flex;gap:6px;align-items:center;margin-bottom:4px}
+#batPanel .unitcard img{width:34px;height:34px;image-rendering:pixelated}
+#batPanel .unitcard .nm{font-family:var(--pix);font-size:12px;color:#f2e8cd}
+#batPanel .unitcard .st{font-size:10px;color:var(--muted)}
+.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;font-size:9.5px;color:var(--muted);margin:3px 0}
+.statgrid b{display:block;font-family:var(--pix);font-size:12px;color:#f0e6cc;font-weight:400}
+#skillRow{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+button.skill{font-size:10.5px;min-height:30px;background:linear-gradient(180deg,#3a3357,#241f38);border-color:#7c6fb2}
+
+/* ---------- オーバーレイ ---------- */
+.overlay{position:fixed;inset:0;background:rgba(4,7,11,.9);display:flex;align-items:center;justify-content:center;padding:10px;z-index:40;overflow:auto}
+.sheet{max-width:560px;width:100%;background:linear-gradient(160deg,#18222f,#0d131b);border:2px solid var(--line);padding:12px 14px;max-height:calc(100dvh - 20px);overflow:auto;box-shadow:0 18px 44px rgba(0,0,0,.6)}
+.sheet h2{font-family:var(--pix);margin:0 0 8px;font-size:15px;color:var(--gold);letter-spacing:.05em}
+.sheet h3{font-family:var(--pix);margin:12px 0 4px;font-size:12px;color:#e7cf98}
+.sheet p,.sheet li{font-size:11.5px;line-height:1.65;color:#c6d3e2;margin:3px 0}
+.sheet ul{margin:3px 0;padding-left:16px}
+.sheet kbd{font-family:var(--pix);font-size:10px;background:#202b3a;border:1px solid #3d4e63;padding:0 4px}
+table{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:4px}
+th,td{padding:3px 2px;text-align:center;border-bottom:1px solid #212c3a}
+th{color:#8ea3bd;font-weight:600;font-size:10px}
+.rowbtn{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.rowbtn button{flex:1 1 110px}
+#bigResult{font-family:var(--pix);font-size:24px;letter-spacing:.08em;text-align:center;margin:2px 0 6px}
+#bigResult.win{color:#8fe0a8}#bigResult.lose{color:#f0917f}#bigResult.draw{color:#e8cd8a}
+.setrow{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--muted);flex-wrap:wrap;padding:3px 0}
+.setrow b{font-family:var(--pix);color:#f0e6cc;font-weight:400;font-size:12px}
+.compGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:4px 0}
+.compGrid label{display:flex;flex-direction:column;gap:3px;font-size:10px;color:var(--muted)}
+.compGrid input{width:100%;min-width:0;background:#111923;border:2px solid #3b4c60;color:#f0e6cc;padding:4px;font:12px var(--pix)}
+input[type=range]{flex:1 1 120px;accent-color:#e6c068;height:22px}
+.picklist{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
+button.genpick{font-size:10.5px;text-align:left;line-height:1.25;min-height:38px;padding:4px 7px}
+button.genpick b{font-family:var(--pix);font-size:12px;font-weight:400;color:#f2e8cd;display:block}
+button.genpick span{font-size:9px;color:#a9bccf}
+button.genpick.sel{background:linear-gradient(180deg,#6f5220,#4a3514);border-color:var(--gold)}
+.note{font-size:10px;color:#7f92a8;line-height:1.5;margin-top:8px}
+
+/* ---------- 狭い横長画面 ---------- */
+@media (max-height:430px){
+  .topbar{padding:2px 6px;padding-top:calc(2px + env(safe-area-inset-top))}
+  .chipbox{font-size:9.5px}.chipbox b{font-size:11px}
+  .bar{padding:4px 6px;padding-bottom:calc(4px + env(safe-area-inset-bottom));gap:4px}
+  button{min-height:30px;padding:4px 7px;font-size:11px}
+  button.mini{min-height:26px}
+  #campMain{padding:4px;gap:4px;grid-template-columns:minmax(96px,14%) minmax(0,1fr) minmax(140px,26%)}
+  #batMain{padding:4px;gap:4px}
+  .pane h3{font-size:10px;padding:3px 5px}
+  .pane .body{font-size:10.5px;padding:4px 5px}
+  .side .nm{font-size:10.5px}
+  #cityAct{grid-template-columns:repeat(3,1fr)}
+  #cityAct button{font-size:9.5px}
+  .side{max-width:200px}
+}
+@media (max-height:360px){
+  .pane h3{display:none}
+  .side .mini{font-size:9px}
+  #cityAct button i{display:none}
+}
+@media (min-width:900px){
+  .bar,.topbar{font-size:12px}
+  button{font-size:13px;min-height:38px}
+  .pane .body{font-size:12px}
+  #cityAct button{font-size:11.5px;min-height:34px}
+  .pane h3{font-size:12px}
+  .side{font-size:11px}
+}
+</style>
+</head>
+<body>
+<div id="rotate">
+  <div class="phone"></div>
+  <h2 data-i18n="rotate_t">端末を横にしてください</h2>
+  <p data-i18n="rotate_d">戦国王は横長の画面で作られています。端末を回転すると始まります。</p>
+  <button class="mini" id="rotateGo" data-i18n="rotate_go">縦のまま続ける</button>
+</div>
+
+<div id="app">
+
+<!-- ================= タイトル ================= -->
+<section class="screen on" id="scrTitle">
+  <div id="titleIn">
+    <div id="titleArt">
+      <canvas id="titleCanvas" width="120" height="72"></canvas>
+      <h1 data-i18n="game_title">戦国王</h1>
+      <div class="sub">WARRING STATES RULER</div>
+      <div class="ver" id="verTag">v1.0</div>
+    </div>
+    <div id="titleForm">
+      <h2 data-i18n="pick_state">興す国を選ぶ</h2>
+      <div id="statePick"></div>
+      <div class="setrow">
+        <span data-i18n="lbl_diff">難易度</span>
+        <select id="diffSel">
+          <option value="easy" data-i18n="diff_easy">やさしい</option>
+          <option value="normal" selected data-i18n="diff_normal">ふつう</option>
+          <option value="hard" data-i18n="diff_hard">むずかしい</option>
+        </select>
+        <span class="note" id="diffNote"></span>
+      </div>
+      <div id="titleBtns">
+        <button class="go" id="startBtn" data-i18n="btn_start">起兵する</button>
+        <button id="contBtn" data-i18n="btn_continue">続きを遊ぶ</button>
+        <button class="mini" id="wipeBtnT" data-i18n="btn_wipe">データを消す</button>
+      </div>
+      <p class="note" id="titleNote"></p>
+      <p class="note" data-i18n="title_how">戦略（国政）と戦術（戦闘）は別の画面です。内政と外交で国を強くし、戦いを挑むときは戦場で兵を指揮します。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 戦略（国政） ================= -->
+<section class="screen" id="scrCamp">
+  <div class="topbar" id="campTop">
+    <span class="tag" id="stateTag"></span>
+    <span class="tag" id="dateTag"></span>
+    <span class="chipbox" id="chipGold"><span data-i18n="k_gold">金</span><b>0</b></span>
+    <span class="chipbox" id="chipFood"><span data-i18n="k_food">食糧</span><b>0</b></span>
+    <span class="chipbox" id="chipMen"><span data-i18n="k_men">兵源</span><b>0</b></span>
+    <span class="chipbox" id="chipPrestige"><span data-i18n="k_prestige">威望</span><b>0</b></span>
+    <span class="chipbox" id="chipPol"><span data-i18n="k_pol">政令</span><b>0</b></span>
+    <span class="chipbox" id="chipStab" style="min-width:96px"><span data-i18n="k_stab">民心</span><b>0</b><span class="meter gold" style="flex:1 1 40px;min-width:34px"><b style="width:50%"></b></span></span>
+    <span class="spacer"></span>
+    <span class="tag" id="warTag"></span>
+  </div>
+  <div id="campMain">
+    <div class="pane">
+      <h3 data-i18n="pane_powers">勢力と外交</h3>
+      <div class="body" id="powerList"></div>
+    </div>
+    <div id="mapWrap">
+      <canvas id="mapc" aria-label="map"></canvas>
+      <div id="mapTip"></div>
+      <div id="mapHint" data-i18n="map_hint">都市をタップして内政・出兵</div>
+    </div>
+    <div class="pane">
+      <h3 id="cityTitle">―</h3>
+      <div class="body">
+        <div id="cityInfo"></div>
+        <div id="cityAct"></div>
+        <h3 style="padding-left:0" data-i18n="pane_log">戦況記録</h3>
+        <div id="campLog"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 戦術（戦闘） ================= -->
+<section class="screen" id="scrBattle">
+  <div class="topbar" id="batTop">
+    <div id="batSides"></div>
+    <div class="spacer"></div>
+    <div id="batMid"><div id="batTurn"></div><div id="batPhase"></div></div>
+    <div class="spacer"></div>
+    <span class="tag" id="batObj"></span>
+  </div>
+  <div id="batMain">
+    <div id="wrapOuter">
+      <div id="wrap"><div id="board" aria-label="battle board"></div></div>
+      <div id="scrollHint" data-i18n="scroll_hint">↕ 盤面をスライド</div>
+    </div>
+    <div class="pane">
+      <h3 data-i18n="pane_field">戦況</h3>
+      <div class="body" id="batPanel"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 共通ボトムバー ================= -->
+<div class="bar" id="bar">
+  <span class="grp hidden" id="barCamp" style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+    <button class="go" id="endSeason" data-i18n="btn_season">季節を終える</button>
+    <button class="mini" id="saveBtn" data-i18n="btn_save">保存</button>
+    <button class="mini" id="titleBack" data-i18n="btn_title">タイトルへ</button>
+  </span>
+  <span class="grp hidden" id="barBat" style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+    <button class="skill" id="skillBtn"></button>
+    <button class="mini" id="undoBtn" data-i18n="btn_undo">戻す</button>
+    <button class="mini" id="retreatBtn" data-i18n="btn_retreat">退く</button>
+    <button class="go" id="endBtn" data-i18n="btn_turn">ターン終了</button>
+  </span>
+  <span class="spacer"></span>
+  <button class="mini" id="helpBtn" data-i18n="btn_help">ルール</button>
+  <select id="langSel" title="Language">
+    <option value="ja">日本語</option>
+    <option value="en">English</option>
+    <option value="zh">中文</option>
+  </select>
+  <button class="mini" id="sfxBtn" aria-pressed="true">♪</button>
+  <button class="mini" id="bgmBtn" aria-pressed="true">♫</button>
+  <span class="tag hidden" id="saveTag"></span>
+</div>
+
+<!-- ================= オーバーレイ ================= -->
+<div class="overlay hidden" id="helpOv"><div class="sheet"><div id="helpBody"></div><div class="rowbtn"><button id="closeHelp" data-i18n="btn_close">閉じる</button></div></div></div>
+
+<div class="overlay hidden" id="setupOv"><div class="sheet">
+  <h2 id="setupTitle">出兵</h2>
+  <div id="setupBody"></div>
+  <div class="rowbtn">
+    <button class="go" id="setupGo" data-i18n="btn_march">進軍する</button>
+    <button id="setupCancel" data-i18n="btn_cancel">取りやめ</button>
+  </div>
+</div></div>
+
+<div class="overlay hidden" id="resOv"><div class="sheet" style="text-align:center">
+  <div id="bigResult"></div>
+  <div id="resBody"></div>
+  <div class="rowbtn" id="resBtns"></div>
+</div></div>
+
+<div class="overlay hidden" id="evOv"><div class="sheet" style="text-align:center">
+  <h2 id="evTitle"></h2>
+  <div id="evBody"></div>
+  <div class="rowbtn"><button class="go" id="evOk" data-i18n="btn_ok">よろしい</button></div>
+</div></div>
+
+<div class="overlay hidden" id="endOv"><div class="sheet" style="text-align:center">
+  <div id="endTitle"></div>
+  <div id="endBody"></div>
+  <div class="rowbtn">
+    <button class="go" id="endAgain" data-i18n="btn_again">もう一度</button>
+    <button id="endTitleBtn" data-i18n="btn_title">タイトルへ</button>
+  </div>
+</div></div>
+
+<div class="overlay hidden" id="bootOv"><div class="sheet" style="text-align:center">
+  <h2 data-i18n="save_found">セーブデータを発見</h2>
+  <p id="bootInfo"></p>
+  <div class="rowbtn">
+    <button class="go" id="bootResume" data-i18n="btn_continue">続きを遊ぶ</button>
+    <button id="bootNew" data-i18n="btn_new">新しく始める</button>
+  </div>
+</div></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   0. ユーティリティ
+   ===================================================================== */
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function ri(n){ return Math.floor(Math.random()*n); }
+function rnd(a,b){ return a+Math.random()*(b-a); }
+function pick(arr){ return arr[ri(arr.length)]; }
+function has(arr,v){ for(var i=0;i<arr.length;i++) if(arr[i]===v) return true; return false; }
+function pad2(n){ return (n<10?'0':'')+n; }
+function seedRnd(s){ var x=s>>>0; return function(){ x=(x*1664525+1013904223)>>>0; return x/4294967296; }; }
+function mix(hex,k){                    // 色の明暗。k>0 で明るく、k<0 で暗く
+  var r=parseInt(hex.substr(1,2),16),g=parseInt(hex.substr(3,2),16),b=parseInt(hex.substr(5,2),16);
+  function f(c){ return clamp(Math.round(k>0?c+(255-c)*k:c*(1+k)),0,255); }
+  return '#'+[f(r),f(g),f(b)].map(function(c){ return (c<16?'0':'')+c.toString(16); }).join('');
+}
+
+/* =====================================================================
+   1. 多言語  （UI 文。固有名詞はデータ側に ja/en/zh を内包）
+   ===================================================================== */
+var LANG='ja';
+var I18N={};
+I18N.ja={
+ app_title:'戦国王 Warring States Ruler ― 像素戦国ストラテジー',
+ game_title:'戦国王',
+ rotate_t:'端末を横にしてください',
+ rotate_d:'戦国王は横長の画面で作られています。端末を回転すると始まります。',
+ rotate_go:'縦のまま続ける',
+ pick_state:'興す国を選ぶ', lbl_diff:'難易度',
+ diff_easy:'やさしい', diff_normal:'ふつう', diff_hard:'むずかしい',
+ diff_note_easy:'AIは手加減し、機をうかがうのが下手です。',
+ diff_note_normal:'AIは普通に国を運営して攻めてきます。',
+ diff_note_hard:'AIは政令も資金も多く、隙を見せません。',
+ btn_start:'起兵する', btn_continue:'続きを遊ぶ', btn_wipe:'データを消す',
+ note_saved:'セーブあり：{s}の {y}年', note_nosave:'保存はまだありません。国を選んで「起兵する」から。',
+ title_how:'戦略（国政）と戦術（戦闘）は別の画面です。内政・外交で国を強くし、戦いを挑むときは戦場で兵を直接指揮します。',
+ btn_season:'季節を終える', btn_save:'保存', btn_title:'タイトルへ', btn_help:'ルール', btn_close:'閉じる',
+ btn_undo:'戻す', btn_retreat:'退く', btn_turn:'ターン終了', btn_march:'進軍する', btn_cancel:'取りやめ',
+ btn_ok:'よろしい', btn_back:'城へ戻る', btn_again:'もう一度', btn_new:'新しく始める',
+ save_found:'セーブデータを発見', boot_info:'{s} ／ {y}年・{sea} ／ 都市 {c} 邑',
+ date:'{y}年・{s}',
+ sea_spring:'春', sea_summer:'夏', sea_autumn:'秋', sea_winter:'冬',
+ sea_short_spring:'春', sea_short_summer:'夏', sea_short_autumn:'秋', sea_short_winter:'冬',
+ k_gold:'金', k_food:'食糧', k_men:'兵源', k_prestige:'威望', k_pol:'政令', k_stab:'民心',
+ k_atwar:'開戦中', k_allpeace:'平静',
+ k_garr:'守備', k_walls:'城壁', k_farms:'農業', k_town:'商業', k_train:'練度', k_unrest:'動揺',
+ k_base:'本営', k_morale:'士気', k_units:'兵', k_tac:'軍略',
+ pane_powers:'勢力と外交', pane_log:'戦況記録', pane_field:'戦況',
+ map_hint:'都市をタップして内政・出兵（★＝都）',
+ scroll_hint:'↕ 盤面をスライド',
+ p_you:'あなたの国', p_war:'交戦中', p_ally:'同盟', p_peace:'和平', p_truce:'休戦中',
+ p_cities:'都市', p_garr:'兵', p_rel:'関係', p_pop:'人口', p_gens:'在留の将', p_nogen:'将はいない',
+ d_envoy:'使節', d_peace:'講和', d_ally:'同盟', d_war:'宣戦',
+ dev_farms:'開墾', dev_town:'市易', dev_walls:'修城', dev_train:'訓練', dev_recruit:'徴兵', dev_appease:'安抚',
+ devd_farms:'農業開発+1（秋の実収が増える）', devd_town:'商業開発+1（金の収入が増える）',
+ devd_walls:'城壁+1（攻城戦で守りが固く、本営が頑丈）', devd_train:'練度+1（戦場で兵が強くなる）',
+ dev_recruit_short:'守備+8', devd_recruit:'守備兵+8（兵源と食糧を消費）', devd_appease:'民心+7・動揺を鎮める',
+ cost_gold:'金', cost_men:'兵源', cost_pol:'政令',
+ act_move:'移駐', act_split:'分兵', act_attack:'出兵', act_hire:'客将を登用', act_reward:'褒賞',
+ err_notyours:'その都市はあなたの領ではありません', err_nopol:'政令が足りない',
+ err_maxed:'その開発は限度に達した', err_nogold:'金が足りない', err_nomen:'兵源か食糧が足りない',
+ err_nostate:'その国は既に滅びている', err_ally:'既に同盟を結んでいる', err_nowar:'交戦していない',
+ err_lowrel:'関係が足りぬ（55以上必要）', err_samecity:'その将は既にこの都市にいる',
+ err_nogen:'登用できる客将がいない', err_nomove:'動かせる兵がおらぬ', err_noroad:'街道でつながっていない',
+ err_owncity:'同じ国の都市は攻められない', err_nocity:'都市が見つからない', err_truce:'休戦中は攻められない',
+ err_smallarmy:'出兵には守備8以上必要', err_nopol2:'出兵に政令2必要',
+ log_begin:'{s}を興し、国政を始めた。',
+ log_season:'── {y}年・{s} ──（政令 {me}）',
+ log_starve:'食糧が尽き、兵が逃けて民心が落ちた。',
+ log_debt:'蔵が空になり、民心が落ちた。',
+ log_dev:'{c}で{w}を行った。',
+ log_appease:'{c}を安抚した。',
+ log_fail:'（実行できず：{m}）',
+ log_envoy:'{s}へ使節を送った（関係 {r}）。',
+ log_peace_ok:'{a}と{b}は講和した。',
+ log_peace_reject:'{s}は講和を退けた。',
+ log_ally:'{a}と{b}は同盟を結んだ。',
+ log_war:'{a}が{b}に宣戦！',
+ log_ally_join:'{a}は同盟により{b}との戦を開いた。',
+ log_surprise:'寝返りを打って{s}に攻め込んだ（民心が下がる）。',
+ log_march:'{f}から{t}へ{n}の兵を進軍させた。',
+ log_take:'{a}が{c}を落とした（{d}）。',
+ log_repel:'{d}が{c}を守り抜き、{a}を退けた。',
+ log_annex:'{l}は滅び、{w}が併合した。',
+ log_cap_gen:'{g}を捕らえた。',
+ log_gen_defect:'{g}は{s}に仕えることを選んだ。',
+ log_gen_dead:'{g}は戦死した。',
+ log_gen_hired:'{g}を登用した。',
+ log_gen_freed:'{g}を釈放した。',
+ log_gen_killed:'{g}を処断した（他国の警戒が強まる）。',
+ log_genmove:'{g}を{c}に配置した。',
+ log_reward:'{g}に褒賞を与えた。',
+ log_hire:'{g}を{c}で登用した。',
+ log_move:'{f}から{t}へ{n}を移駐した。',
+ log_split:'{f}から{t}へ{n}を分兵した。',
+ log_unrest:'{c}で動揺が広がり、守備が{n}減った。',
+ log_ev_good:'豊作。食糧+{v}。',
+ log_ev_bad:'{c}で洪水・旱魃。食糧が減り農業が落ちた。',
+ log_ev_rebel:'{c}で反乱。守備が減り動揺が広がった。',
+ log_ev_guest:'客将 {g} が仕官を求めてきた。',
+ log_ev_market:'市が立ち、金+{v}。',
+ log_ai_peace:'{a}は{b}に貢を奉じて講和した（{v}）。',
+ log_ai_pressure:'{a}は{b}の国境で兵を動かした。',
+ log_ai_ally:'{a}と{b}が通好した。',
+ log_ai_move:'{a}は{f}から{t}へ{n}を増援した。',
+ log_ai_battle:'{a}は{c}で{d}と戦い、{w}が勝った（損耗{l}）。',
+ log_ai_hire:'{s}が客将 {g} を登用した。',
+ ev_title:'国政の報',
+ ev_good:'豊作。穀倉に食糧が{v}加わった。',
+ ev_bad:'{c}で水害・旱魃。農業が衰え食糧が減った。',
+ ev_rebel:'{c}で百姓が蜂起した。守備を減らし、動揺が広がった。',
+ ev_guest:'周遊の賢者 {g} があなたの下で仕官を望んでいる。都市を選んで登用できる。',
+ ev_market:'市易が栄え、金が{v}増えた。',
+ ev_war:'警報！{s}があなたの国に宣戦を布告した。',
+ ev_invasion:'警報！{s}の軍が{c}へ攻め込んできた。この戦いはあなたが守り手として指揮する。',
+ ev_lost_city:'警報！{c}が{a}の攻撃で陥ちた（損耗{l}）。',
+ ev_defended:'報：{c}は{a}の攻撃を凌いだ（損耗{l}）。',
+ res_take:'{c}を占領した。', res_repel:'{c}を守り抜いた。', res_annex:'{l}は{w}に併合された。',
+ res_win:'戦 勝', res_lose:'戦 敗',
+ res_line:'{c}の戦い ― {r}（{n}ターン）',
+ res_note_win:'占領した都市は守備兵を置いて守れ。動揺が鎮まるまでは収入が落ちる。',
+ res_note_lose:'失った兵は戻らぬ。内政を直し、時を待て。',
+ rsn_camp:'本営が落ちた', rsn_rout:'士気が尽きた', rsn_elim:'戦える兵が残らなかった',
+ rsn_stale:'期限内に決着できず、攻め手は退いた', rsn_retreat:'自らの判断で退いた',
+ cap_title:'捕らえた将', fate_hire:'登用する', fate_free:'釈放する', fate_kill:'処断する',
+ end_win:'天 下 統 一', end_lose:'国 滅 び',
+ end_win_d:'{y}年、あなたは{c}邑をすべて従え、天下を統一した。',
+ end_lose_d:'{y}年、あなたの国は{c}邑のうち{n}邑のみを残すのみとなった。',
+ end_stat:'（在位{t}季節・金{g}・食糧{f}・威望{p}）',
+ setup_body:'{f}の軍で{t}（{o}の領・守備{g}・城壁{w}）を狙う。街道の地形は「{lk}」。',
+ setup_troops:'出兵数', setup_est:'戦場の部隊数', setup_estv:'{c}部隊',
+ setup_comp:'出兵兵科の内訳', setup_comp_total:'編成数 {n}/{max}部隊', err_comp_size:'兵科の合計を{n}部隊にしてください',
+ setup_gen:'随伴する将', setup_note:'出兵した兵は季節が移るまで{f}には戻れない。守り手として戦うときは盤面が上下反転します。',
+ lk_plain:'平野', lk_hill:'丘陵', lk_mountain:'山道', lk_river:'川沿い',
+ tg_forest:'森', tg_mountain:'山', tg_water:'川', tg_village:'村', tg_wall:'壁', tg_gate:'門', tg_base:'営',
+ th_unit:'兵科', th_cost:'費用', th_move:'移動', th_range:'射程', th_atk:'攻撃', th_hp:'HP',
+ th_side:'陣営', th_loss:'損耗', th_skill:'戦法', th_cost2:'軍略', th_eff:'効果', th_act:'政令', th_terr:'地形',
+ sk_fire:'周辺3マスの敵に火攻め（森は焼けて平野になる）',
+ sk_charge:'選んだ兵が再行動し、攻撃+50%・移動+2・反撃を受けない',
+ sk_rally:'本営周辺の味方を回復し、士気+10',
+ sk_surprise:'本営周辺の敵に奇襲攻撃を仕掛け、士気をくじく',
+ b_turn:'ターン {n}/{max}', phase_you:'あなたの指揮', phase_over:'決着',
+ side_me:'自軍', side_foe:'敵軍', r_att:'攻め手', r_def:'守り手',
+ obj_siege:'攻城戦', obj_field:'野外戦',
+ st_spent:'行動済み', hint_sel:'兵をタップ→緑マスへ移動／黄マスへ攻撃。戦闘中に新兵は生産できません。',
+ cnt_hint:'相性:',
+ g_lead:'統率', g_war:'武力', g_int:'知略', loyal:'忠節',
+ b_start:'{c}の戦いが始まった。敵本営を落とせ。',
+ b_hit:'{a}の{au} → {d}の{du} に {v} の傷',
+ b_kill:'{s}の{u}が倒れた！',
+ b_counter:'反撃 {v}',
+ b_basehit:'{s}の{u}が{foe}本営を急襲（-{v}／残 {left}）',
+ b_village:'{s}が村を確保した',
+ b_end:'決着：{w}の勝ち（{r}）', b_undo:'一手戻した', b_retreat:'自軍は戦場から退いた',
+ b_skill:'{s}の戦法（{k}）が的中した（{n}）', b_skill_no:'戦法は空振りになった',
+ saved:'保存した', save_fail:'この端末には保存できない', wipe_done:'保存データを消した',
+ help_html:'<h2>戦国王の遊び方</h2><p>戦国時代の中国を舞台に、<b>国を興して天下を統一</b>するのが目的です。<b>戦略（国政）</b>と<b>戦術（戦闘）</b>は画面もルールも分かれています。</p>'+
+ '<h3>1. 戦略レイヤー（国政）</h3><ul>'+
+ '<li>1季節ごとに<b>収入</b>（商業・農業・市利）と<b>維持費</b>（守備兵の粮）が入り、<b>政令</b>の分だけ内政・外交・出兵ができます。</li>'+
+ '<li>都市をタップして <b>開墾・市易・修城・訓練・徴兵・安抚</b>。街道でつながった隣接都市之间に<b>移駐・分兵</b>。</li>'+
+ '<li>左の勢力リストで<b>使節（関係+）・講和・同盟・宣戦</b>。同盟国は攻撃されません。関係が−28以下で隣国は宣戦してきます。</li>'+
+ '<li><b>威望</b>が高いほど政令が増えます。民心が30を割ると反乱が起き、食糧が尽くと兵が逃けます。</li>'+
+ '<li>隣の敵都市へ<b>出兵</b>。兵数・兵科構成・随伴する将を選んでから戦闘に入ります。</li></ul>'+
+ '<h3>2. 戦術レイヤー（戦闘）</h3><ul>'+
+ '<li>ターン制の盤面。<b>兵は1ターンに1回</b>、移動して攻撃（または攻撃のみ）。</li>'+
+ '<li><b>本営</b>を壊す／<b>士気</b>をゼロにする／敵部隊をすべて倒すと勝利。26ターンまでに決着しなければ攻め手が敗退します。</li>'+
+ '<li>出兵前に兵科を編成します。戦闘中に新兵は生産できません。村は部隊の回復拠点になります。</li>'+
+ '<li>長期化すると<b>攻城と消耗が加速</b>します（膠着防止）。</li></ul>'+
+ '<h3>3. 兵科と相性</h3>{units}<p><b>騎兵は歩兵に強く、槍兵は騎兵を砕き、歩兵は弓兵に強く、弓兵は槍兵を射抜く</b>――の巡り合わせ。隣接攻撃では生き残った相手に<b>反撃</b>を受けます（遠隔は反撃なし）。山には騎兵は入れません。</p>'+
+ '<h3>4. 将軍と戦法</h3><p>戦闘には随伴した将が付き、<b>統率・武力</b>が兵を強くします。ターンごとに溜まる<b>軍略</b>を消費して、次の戦法を使えます。</p>{skills}<p>捕らえた将は<b>登用／釈放／処断</b>できます。処断は他の国の警戒を招きます。</p>'+
+ '<h3>5. 内政の一覧</h3>{devs}<p>都市の<b>城壁3以上</b>を攻めると<b>攻城戦</b>（城壁と門のある盤面）になります。</p>'+
+ '<h3>6. 保存と音</h3><ul><li>進行は<b>この端末のブラウザ</b>に自動保存されます（ネットワークには送信しません）。戦闘の途中も復元できます。</li>'+
+ '<li>効果音（♪）と音楽（♫）はそれぞれ ON/OFF でき、設定は保存されます。</li></ul>'+
+ '<h3>操作</h3><ul><li>戦略画面：都市をタップ→右のパネルで政令を使う。<kbd>N</kbd> で季節終了、<kbd>S</kbd> で保存。</li>'+
+ '<li>戦闘画面：兵をタップ→緑マスへ移動／黄マスへ攻撃。もう一度タップで解除。<kbd>Space</kbd> ターン終了／<kbd>U</kbd> 戻す／<kbd>Esc</kbd> 解除。</li>'+
+ '<li>盤面が画面に収まらないときは盤面だけをスライドできます。</li></ul>'
+};
+I18N.en={
+ app_title:'Warring States Ruler ― pixel grand strategy',
+ game_title:'Warring States Ruler',
+ rotate_t:'Please turn your device sideways',
+ rotate_d:'Warring States Ruler is built for a wide screen. Rotate the device to begin.',
+ rotate_go:'Keep it vertical',
+ pick_state:'Choose the state you will raise', lbl_diff:'Difficulty',
+ diff_easy:'Easy', diff_normal:'Normal', diff_hard:'Hard',
+ diff_note_easy:'The rival courts hold back and miss their chances.',
+ diff_note_normal:'The rivals govern and attack at a fair pace.',
+ diff_note_hard:'The rivals enjoy more decrees and gold, and rarely slip.',
+ btn_start:'Raise the banner', btn_continue:'Continue', btn_wipe:'Delete data',
+ note_saved:'Save found: {s}, year {y}', note_nosave:'Nothing saved yet. Pick a state and raise the banner.',
+ title_how:'Statecraft and battle are separate layers. Grow the state with internal policy and diplomacy; when you fight, you command the troops yourself on the battlefield.',
+ btn_season:'End season', btn_save:'Save', btn_title:'To title', btn_help:'Rules', btn_close:'Close',
+ btn_undo:'Undo', btn_retreat:'Retreat', btn_turn:'End turn', btn_march:'March', btn_cancel:'Cancel',
+ btn_ok:'Very well', btn_back:'Back to the city', btn_again:'Play again', btn_new:'Start anew',
+ save_found:'Saved game found', boot_info:'{s} / year {y} {sea} / {c} cities',
+ date:'Year {y} · {s}',
+ sea_spring:'Spring', sea_summer:'Summer', sea_autumn:'Autumn', sea_winter:'Winter',
+ sea_short_spring:'Spr', sea_short_summer:'Sum', sea_short_autumn:'Aut', sea_short_winter:'Win',
+ k_gold:'Gold', k_food:'Food', k_men:'Levies', k_prestige:'Prestige', k_pol:'Decrees', k_stab:'Loyalty',
+ k_atwar:'At war', k_allpeace:'At peace',
+ k_garr:'Garrison', k_walls:'Walls', k_farms:'Farms', k_town:'Trade', k_train:'Drill', k_unrest:'Unrest',
+ k_base:'Camp', k_morale:'Morale', k_units:'Units', k_tac:'Stratagem',
+ pane_powers:'Powers and diplomacy', pane_log:'Chronicle', pane_field:'Battle',
+ map_hint:'Tap a city to govern or to march out (★ = capital)',
+ scroll_hint:'Swipe to scroll the battlefield',
+ p_you:'Your state', p_war:'At war', p_ally:'Allied', p_peace:'Peace', p_truce:'Truce',
+ p_cities:'Cities', p_garr:'Troops', p_rel:'Relations', p_pop:'Population', p_gens:'Generals here', p_nogen:'No general',
+ d_envoy:'Envoy', d_peace:'Make peace', d_ally:'Alliance', d_war:'Declare war',
+ dev_farms:'Reclaim', dev_town:'Market', dev_walls:'Fortify', dev_train:'Drill', dev_recruit:'Conscript', dev_appease:'Relieve',
+ devd_farms:'Farms +1 (larger autumn harvest)', devd_town:'Trade +1 (more gold each season)',
+ devd_walls:'Walls +1 (stronger defence, tougher camp)', devd_train:'Drill +1 (braver troops in battle)',
+ dev_recruit_short:'Garrison +8', devd_recruit:'Garrison +8 (spends levies and food)', devd_appease:'Loyalty +7, calms unrest',
+ cost_gold:'Gold', cost_men:'Levies', cost_pol:'Decrees',
+ act_move:'Transfer', act_split:'Split', act_attack:'March out', act_hire:'Hire wanderer', act_reward:'Reward',
+ err_notyours:'That city is not yours', err_nopol:'Not enough decrees',
+ err_maxed:'That development is already maxed', err_nogold:'Not enough gold', err_nomen:'Not enough levies or food',
+ err_nostate:'That state no longer exists', err_ally:'You are already allied', err_nowar:'You are not at war',
+ err_lowrel:'Relations too poor (55 or more needed)', err_samecity:'That general is already here',
+ err_nogen:'No wandering sage to hire', err_nomove:'No troops to move', err_noroad:'No road connects them',
+ err_owncity:'You cannot attack your own city', err_nocity:'City not found', err_truce:'A truce forbids attack',
+ err_smallarmy:'At least 8 troops must be posted', err_nopol2:'Marching out costs 2 decrees',
+ log_begin:'{s} raises its banner. The reign begins.',
+ log_season:'--- Year {y}, {s} --- ({me} decrees)',
+ log_starve:'The granaries ran dry: troops desert and loyalty falls.',
+ log_debt:'The treasury is empty and loyalty falls.',
+ log_dev:'{w} carried out at {c}.',
+ log_appease:'{c} relieved and pacified.',
+ log_fail:'(cannot act: {m})',
+ log_envoy:'An envoy went to {s} (relations {r}).',
+ log_peace_ok:'{a} and {b} made peace.',
+ log_peace_reject:'{s} refused your peace envoy.',
+ log_ally:'{a} and {b} are now allied.',
+ log_war:'{a} declares war on {b}!',
+ log_ally_join:'{a} joins the war against {b} through its alliance.',
+ log_surprise:'You struck {s} without warning (loyalty suffers).',
+ log_march:'{n} troops marched from {f} against {t}.',
+ log_take:'{a} took {c} from {d}.',
+ log_repel:'{d} held {c} and drove off {a}.',
+ log_annex:'{l} is destroyed; {w} annexes it.',
+ log_cap_gen:'{g} has been captured.',
+ log_gen_defect:'{g} chose to serve {s}.',
+ log_gen_dead:'{g} fell in battle.',
+ log_gen_hired:'{g} enters your service.',
+ log_gen_freed:'{g} was set free.',
+ log_gen_killed:'{g} was executed (other courts grow wary).',
+ log_genmove:'{g} was posted to {c}.',
+ log_reward:'{g} received a reward.',
+ log_hire:'{g} hired at {c}.',
+ log_move:'{n} troops transferred from {f} to {t}.',
+ log_split:'{n} troops detached from {f} to {t}.',
+ log_unrest:'Unrest spread at {c}: garrison -{n}.',
+ log_ev_good:'A good season. Food +{v}.',
+ log_ev_bad:'Flood or drought at {c}: food and farms lost.',
+ log_ev_rebel:'Revolt at {c}: garrison lost and unrest grows.',
+ log_ev_guest:'The wanderer {g} seeks a lord.',
+ log_ev_market:'The markets boom: gold +{v}.',
+ log_ai_peace:'{a} paid tribute to {b} for peace ({v}).',
+ log_ai_pressure:'{a} moves troops along the border of {b}.',
+ log_ai_ally:'{a} and {b} exchange gifts of friendship.',
+ log_ai_move:'{a} reinforces {t} from {f} with {n} troops.',
+ log_ai_battle:'{a} fought {d} at {c}: {w} won ({l} lost).',
+ log_ai_hire:'{s} hires the wanderer {g}.',
+ ev_title:'News of the realm',
+ ev_good:'A bountiful harvest: +{v} food in the granaries.',
+ ev_bad:'Flood and drought at {c}: farms decay and food is lost.',
+ ev_rebel:'The peasants rise at {c}. The garrison shrinks and unrest spreads.',
+ ev_guest:'The wandering sage {g} wishes to serve you. Pick a city to hire them.',
+ ev_market:'Trade flourishes: +{v} gold.',
+ ev_war:'Alarm! {s} has declared war on your state.',
+ ev_invasion:'Alarm! {s} has marched against {c}. This time you defend the field yourself.',
+ ev_lost_city:'Alarm! {c} has fallen to {a} ({l} lost).',
+ ev_defended:'News: {c} withstood the assault by {a} ({l} lost).',
+ res_take:'You occupy {c}.', res_repel:'You held {c}.', res_annex:'{l} was annexed by {w}.',
+ res_win:'VICTORY', res_lose:'DEFEAT',
+ res_line:'Battle of {c} - {r} ({n} turns)',
+ res_note_win:'Leave a garrison in the taken city: unrest suppresses its income for a while.',
+ res_note_lose:'The fallen do not return. Restore the state and bide your time.',
+ rsn_camp:'the camp was overrun', rsn_rout:'morale collapsed', rsn_elim:'no fit troops remained',
+ rsn_stale:'the attacker ran out of time', rsn_retreat:'you withdrew by your own hand',
+ cap_title:'Captured general', fate_hire:'Take into service', fate_free:'Set free', fate_kill:'Execute',
+ end_win:'THE REALM IS ONE', end_lose:'THE STATE IS LOST',
+ end_win_d:'In year {y} you brought all {c} cities under your banner and unified the realm.',
+ end_lose_d:'In year {y} your state holds only {n} of {c} cities.',
+ end_stat:'({t} seasons reign · gold {g} · food {f} · prestige {p})',
+ setup_body:'From {f} you point your army at {t} ({o}, garrison {g}, walls {w}). The road runs through {lk}.',
+ setup_troops:'Troops committed', setup_est:'Units in the field', setup_estv:'{c} units',
+ setup_comp:'Choose unit composition', setup_comp_total:'Composition: {n}/{max} units', err_comp_size:'Assign exactly {n} units to the composition.',
+ setup_gen:'General at your side', setup_note:'Troops on the march cannot return to {f} this season. If you defend, the battlefield is shown upside down.',
+ lk_plain:'open plain', lk_hill:'rolling hills', lk_mountain:'mountain track', lk_river:'river bank',
+ tg_forest:'wood', tg_mountain:'mt', tg_water:'river', tg_village:'vil', tg_wall:'wall', tg_gate:'gate', tg_base:'camp',
+ th_unit:'Unit', th_cost:'Cost', th_move:'Move', th_range:'Range', th_atk:'Attack', th_hp:'HP',
+ th_side:'Side', th_loss:'Losses', th_skill:'Stratagem', th_cost2:'Strat.', th_eff:'Effect', th_act:'Action', th_terr:'Terrain',
+ sk_fire:'burns enemies in a 3-tile area (forests are scorched to plain)',
+ sk_charge:'one unit acts again, +50% attack, +2 move, no counterattack',
+ sk_rally:'heals nearby friendly troops and morale +10',
+ sk_surprise:'ambushes enemies near your camp and breaks their morale',
+ b_turn:'Turn {n}/{max}', phase_you:'Your command', phase_over:'Over',
+ side_me:'Our side', side_foe:'Enemy', r_att:'attacker', r_def:'defender',
+ obj_siege:'Siege', obj_field:'Field battle',
+ st_spent:'has acted', hint_sel:'Tap a unit, then a green tile to move or a yellow tile to strike. No troops can be recruited during battle.',
+ cnt_hint:'Match-up:',
+ g_lead:'Lead', g_war:'Might', g_int:'Wits', loyal:'Loyalty',
+ b_start:'The battle of {c} begins. Break the enemy camp.',
+ b_hit:'{au} of {a} deals {v} to {du} of {d}',
+ b_kill:'{u} of {s} has fallen!',
+ b_counter:'counterattack {v}',
+ b_basehit:'{u} of {s} strikes the {foe} camp (-{v}, {left} left)',
+ b_village:'{s} secures a village',
+ b_end:'Decision: {w} wins ({r})', b_undo:'one move undone', b_retreat:'your side left the field',
+ b_skill:'the {k} of {s} lands (affects {n})', b_skill_no:'the stratagem finds nothing',
+ saved:'Saved', save_fail:'this device cannot store the game', wipe_done:'Saved data deleted',
+ help_html:'<h2>How to play Warring States Ruler</h2><p>Set in the Warring States of ancient China, your aim is to <b>raise a state and unify the realm</b>. <b>Strategy (statecraft)</b> and <b>tactics (battle)</b> are separate screens with separate rules.</p>'+
+ '<h3>1. Strategy layer</h3><ul>'+
+ '<li>Each season brings <b>income</b> (trade, farms, markets) and <b>upkeep</b> for the garrisons. Each <b>decree</b> buys one act of policy, diplomacy or war.</li>'+
+ '<li>Tap a city to <b>Reclaim, Market, Fortify, Drill, Conscript or Relieve</b>. Troops can <b>Transfer</b> or <b>Split</b> along roads to friendly cities.</li>'+
+ '<li>From the power list send an <b>envoy</b> (relations up), sue for <b>peace</b>, seal an <b>alliance</b> or <b>declare war</b>. Allies are not attacked; neighbours with relations below -28 may declare war on you.</li>'+
+ '<li>Higher <b>prestige</b> grants more decrees. Below 30 loyalty revolts break out; with no food the troops desert.</li>'+
+ '<li>Attack a neighbouring enemy city with <b>March out</b>: choose the committed force, unit composition and general before battle.</li></ul>'+
+ '<h3>2. Tactics layer</h3><ul>'+
+ '<li>A turn-based board. Each unit acts <b>once per turn</b>: move then strike, or strike only.</li>'+
+ '<li>You win by destroying the enemy <b>camp</b>, breaking its <b>morale</b> to zero, or defeating every enemy unit. If the siege is not settled in 26 turns the attacker is thrown back.</li>'+
+ '<li>Every unit is chosen before marching; no reinforcements can be produced on the battlefield. Captured villages are useful recovery points.</li>'+
+ '<li>Long battles escalate: <b>siege and attrition grow</b>, so stalemates decide themselves.</li></ul>'+
+ '<h3>3. Units and match-ups</h3>{units}<p><b>Cavalry rides down infantry, spears break cavalry, infantry beats archers, archers outshoot spears.</b> A melee strike draws a <b>counterattack</b> from the survivor; ranged strikes do not. Cavalry cannot enter mountains.</p>'+
+ '<h3>4. Generals and stratagems</h3><p>A general marches with the army; his <b>Lead</b> and <b>Might</b> stiffen the troops. Spending the <b>Stratagem</b> gauge that fills each turn unleashes one of these:</p>{skills}<p>Captured generals can be <b>hired, released or executed</b>. Executions make every other court wary.</p>'+
+ '<h3>5. Internal policy</h3>{devs}<p>Cities with <b>walls 3 or more</b> are fought as a <b>siege</b>, with walls and gates on the board.</p>'+
+ '<h3>6. Saving and sound</h3><ul><li>Progress is saved automatically <b>in this browser on this device</b>, nothing is sent over the network. Battles in progress are restored too.</li>'+
+ '<li>Effects (the ♪ button) and music (♫) each have ON/OFF, and the choice is remembered.</li></ul>'+
+ '<h3>Controls</h3><ul><li>Strategy: tap a city, then use the panel on the right. <kbd>N</kbd> ends the season, <kbd>S</kbd> saves.</li>'+
+ '<li>Battle: tap a unit then a green tile to move or a yellow tile to attack; tap again to deselect. <kbd>Space</kbd> end turn / <kbd>U</kbd> undo / <kbd>Esc</kbd> cancel.</li>'+
+ '<li>If the battlefield does not fit, only the board scrolls.</li></ul>'
+};
+I18N.zh={
+ app_title:'战国王 Warring States Ruler ― 像素战国策略',
+ game_title:'战国王',
+ rotate_t:'请把设备横过来',
+ rotate_d:'《战国王》按横长画面设计。转动设备即可开始。',
+ rotate_go:'继续竖屏游玩',
+ pick_state:'选择你要兴起的国家', lbl_diff:'难度',
+ diff_easy:'简单', diff_normal:'普通', diff_hard:'困难',
+ diff_note_easy:'AI 会手下留情，也不善抓住战机。',
+ diff_note_normal:'AI 正常治国并按正常节奏进攻。',
+ diff_note_hard:'AI 政令与金钱更多，几乎不犯错。',
+ btn_start:'起兵', btn_continue:'继续存档', btn_wipe:'删除数据',
+ note_saved:'发现存档：{s} 第{y}年', note_nosave:'尚无存档。选择国家后点「起兵」。',
+ title_how:'战略（国政）与战术（战斗）是分开的两层。用内政与外交富国强兵；开战时由你亲自在战场指挥用兵。',
+ btn_season:'结束季度', btn_save:'保存', btn_title:'回标题', btn_help:'规则', btn_close:'关闭',
+ btn_undo:'撤销', btn_retreat:'撤退', btn_turn:'结束回合', btn_march:'进军', btn_cancel:'取消',
+ btn_ok:'知道了', btn_back:'返回城池', btn_again:'再来一次', btn_new:'重新开始',
+ save_found:'发现存档', boot_info:'{s} ／ 第{y}年{sea} ／ {c} 城',
+ date:'第{y}年 · {s}',
+ sea_spring:'春', sea_summer:'夏', sea_autumn:'秋', sea_winter:'冬',
+ sea_short_spring:'春', sea_short_summer:'夏', sea_short_autumn:'秋', sea_short_winter:'冬',
+ k_gold:'金', k_food:'粮', k_men:'兵源', k_prestige:'威望', k_pol:'政令', k_stab:'民心',
+ k_atwar:'交战中', k_allpeace:'太平',
+ k_garr:'守军', k_walls:'城壁', k_farms:'农耕', k_town:'商税', k_train:'操练', k_unrest:'动荡',
+ k_base:'本营', k_morale:'士气', k_units:'兵力', k_tac:'军略',
+ pane_powers:'势力与外交', pane_log:'战况记录', pane_field:'战况',
+ map_hint:'点选城池进行内政或出兵（★＝都城）',
+ scroll_hint:'↕ 滑动查看战场',
+ p_you:'你的国家', p_war:'交战', p_ally:'同盟', p_peace:'和平', p_truce:'休战',
+ p_cities:'城池', p_garr:'兵力', p_rel:'关系', p_pop:'人口', p_gens:'驻留武将', p_nogen:'无武将',
+ d_envoy:'派使', d_peace:'议和', d_ally:'结盟', d_war:'宣战',
+ dev_farms:'屯田', dev_town:'通商', dev_walls:'修城', dev_train:'操练', dev_recruit:'征兵', dev_appease:'安抚',
+ devd_farms:'农耕+1（秋季收成更多）', devd_town:'商税+1（每季金钱更多）',
+ devd_walls:'城壁+1（守城更固、本营更硬）', devd_train:'操练+1（战场上的兵更强）',
+ dev_recruit_short:'守军+8', devd_recruit:'守军+8（消耗兵源与粮）', devd_appease:'民心+7，平定动荡',
+ cost_gold:'金', cost_men:'兵源', cost_pol:'政令',
+ act_move:'调动', act_split:'分兵', act_attack:'出兵', act_hire:'延揽客卿', act_reward:'封赏',
+ err_notyours:'该城不属于你', err_nopol:'政令不足',
+ err_maxed:'该项开发已达上限', err_nogold:'金钱不足', err_nomen:'兵源或粮不足',
+ err_nostate:'该国已灭亡', err_ally:'你们已经结盟', err_nowar:'并未交战',
+ err_lowrel:'关系不足（需 55 以上）', err_samecity:'该武将已在此城',
+ err_nogen:'没有可延揽的客卿', err_nomove:'没有可调动的兵力', err_noroad:'两城之间没有道路',
+ err_owncity:'不能攻打自己的城', err_nocity:'找不到城池', err_truce:'休战期间不能进攻',
+ err_smallarmy:'出兵需守军 8 以上', err_nopol2:'出兵需 2 政令',
+ log_begin:'{s} 起兵，基业开始。',
+ log_season:'── 第{y}年 · {s} ──（政令 {me}）',
+ log_starve:'粮尽，士卒逃散，民心下降。',
+ log_debt:'府库空虚，民心下降。',
+ log_dev:'在{c}施行「{w}」。',
+ log_appease:'安抚了{c}。',
+ log_fail:'（无法执行：{m}）',
+ log_envoy:'派使往{s}（关系 {r}）。',
+ log_peace_ok:'{a}与{b}议和成功。',
+ log_peace_reject:'{s}拒绝议和。',
+ log_ally:'{a}与{b}结盟。',
+ log_war:'{a}向{b}宣战！',
+ log_ally_join:'{a}因同盟对{b}开战。',
+ log_surprise:'你突袭{s}（民心下降）。',
+ log_march:'{f}出兵{n}，指向{t}。',
+ log_take:'{a}攻取{c}（自{d}）。',
+ log_repel:'{d}守住{c}，击退{a}。',
+ log_annex:'{l}灭亡，{w}并有其地。',
+ log_cap_gen:'俘获{g}。',
+ log_gen_defect:'{g}转而为{s}效力。',
+ log_gen_dead:'{g}战死。',
+ log_gen_hired:'你延揽了{g}。',
+ log_gen_freed:'你释放了{g}。',
+ log_gen_killed:'你处斩了{g}（他国更加戒备）。',
+ log_genmove:'将{g}调驻{c}。',
+ log_reward:'你封赏了{g}。',
+ log_hire:'在{c}延揽{g}。',
+ log_move:'自{f}向{t}调动{n}。',
+ log_split:'自{f}向{t}分兵{n}。',
+ log_unrest:'{c}动荡加剧，守军 -{n}。',
+ log_ev_good:'丰年。粮 +{v}。',
+ log_ev_bad:'{c}遭遇水旱，粮与农耕受损。',
+ log_ev_rebel:'{c}叛乱。守军受损，动荡扩大。',
+ log_ev_guest:'游士 {g} 前来求仕。',
+ log_ev_market:'商市繁荣，金 +{v}。',
+ log_ai_peace:'{a}向{b}纳贡求和（{v}）。',
+ log_ai_pressure:'{a}在{b}边境调动兵马。',
+ log_ai_ally:'{a}与{b}互通友好。',
+ log_ai_move:'{a}自{f}向{t}增援{n}。',
+ log_ai_battle:'{a}与{d}战于{c}：{w}获胜（损耗{l}）。',
+ log_ai_hire:'{s}延揽了客卿 {g}。',
+ ev_title:'国政要闻',
+ ev_good:'丰收：粮仓增粮 {v}。',
+ ev_bad:'{c}水旱为灾，农耕衰败、粮食受损。',
+ ev_rebel:'{c}百姓起事。守军减少，动荡蔓延。',
+ ev_guest:'游士 {g} 愿为你出仕。可选城池延揽。',
+ ev_market:'商贸兴旺：金 +{v}。',
+ ev_war:'警报！{s}已对你宣战。',
+ ev_invasion:'警报！{s}的军势杀向{c}。此战由你作为守方亲自指挥。',
+ ev_lost_city:'警报！{c}被{a}攻陷（损耗 {l}）。',
+ ev_defended:'战报：{c}顶住{a}的进攻（损耗 {l}）。',
+ res_take:'你占领了{c}。', res_repel:'你守住了{c}。', res_annex:'{l}被{w}兼并。',
+ res_win:'战 胜', res_lose:'战 败',
+ res_line:'{c}之战 ― {r}（{n} 回合）',
+ res_note_win:'占领的城池须留守军；动荡平息前其收入较低。',
+ res_note_lose:'阵亡者不能复生。修整内政，待机而动。',
+ rsn_camp:'本营被破', rsn_rout:'士气崩溃', rsn_elim:'已无可战之兵',
+ rsn_stale:'攻方未能及时决出胜负而退兵', rsn_retreat:'你主动撤退',
+ cap_title:'被俘的武将', fate_hire:'任用', fate_free:'释放', fate_kill:'处斩',
+ end_win:'天 下 一 统', end_lose:'国 破 家 亡',
+ end_win_d:'第{y}年，你降服全部{c}城，天下一统。',
+ end_lose_d:'第{y}年，你的国家仅存 {n}／{c} 城。',
+ end_stat:'（在位{t}季 · 金{g} · 粮{f} · 威望{p}）',
+ setup_body:'自{f}进军{t}（{o}之地：守军{g}、城壁{w}）。沿途地形：{lk}。',
+ setup_troops:'出兵数量', setup_est:'战场部队数', setup_estv:'{c} 队',
+ setup_comp:'出兵兵种编成', setup_comp_total:'编成数量 {n}/{max} 队', err_comp_size:'兵种总数须为 {n} 队。',
+ setup_gen:'随军武将', setup_note:'出征之兵本季不能返回{f}。若你守城，战场画面会上下翻转。',
+ lk_plain:'平原', lk_hill:'丘陵', lk_mountain:'山道', lk_river:'河畔',
+ tg_forest:'林', tg_mountain:'山', tg_water:'河', tg_village:'村', tg_wall:'墙', tg_gate:'门', tg_base:'营',
+ th_unit:'兵种', th_cost:'费用', th_move:'移动', th_range:'射程', th_atk:'攻击', th_hp:'HP',
+ th_side:'阵营', th_loss:'损耗', th_skill:'战法', th_cost2:'军略', th_eff:'效果', th_act:'政务', th_terr:'地形',
+ sk_fire:'对周围3格敌军火攻（森林烧为平地）',
+ sk_charge:'指定部队再次行动：攻击+50%、移动+2、不受反击',
+ sk_rally:'恢复本营附近友军，士气+10',
+ sk_surprise:'奇袭本营周围的敌军并打击其士气',
+ b_turn:'第 {n}/{max} 回合', phase_you:'你的指挥', phase_over:'战斗结束',
+ side_me:'我军', side_foe:'敌军', r_att:'攻方', r_def:'守方',
+ obj_siege:'攻城战', obj_field:'野外战',
+ st_spent:'已行动', hint_sel:'点选部队→点绿格移动／点黄格攻击。战斗中无法生产新兵。',
+ cnt_hint:'相克:',
+ g_lead:'统率', g_war:'武力', g_int:'智略', loyal:'忠诚',
+ b_start:'{c}之战开始：攻陷敌军本营。',
+ b_hit:'{a}的{au} 对 {d}的{du} 造成 {v} 伤害',
+ b_kill:'{s}的{u}被击破！',
+ b_counter:'反击造成 {v}',
+ b_basehit:'{s}的{u} 突击{foe}本营（-{v}／余 {left}）',
+ b_village:'{s}占据了村落',
+ b_end:'决出胜负：{w}胜（{r}）', b_undo:'已撤销一步', b_retreat:'该部撤离战场',
+ b_skill:'{s}的行「{k}」奏效（影响 {n}）', b_skill_no:'战法落空',
+ saved:'已保存', save_fail:'此设备无法保存', wipe_done:'存档已删除',
+ help_html:'<h2>《战国王》玩法</h2><p>以中国战国时代为舞台，<b>兴国并统一天下</b>。<b>战略（国政）</b>与<b>战术（战斗）</b>是画面与规则都分开的两层。</p>'+
+ '<h3>1. 战略层（国政）</h3><ul>'+
+ '<li>每季有<b>收入</b>（商税、农耕、市利）与守军<b>耗费</b>。每点<b>政令</b>可行使一次内政、外交或出兵。</li>'+
+ '<li>点选城池可<b>屯田·通商·修城·操练·征兵·安抚</b>；沿道路可向友城<b>调动·分兵</b>。</li>'+
+ '<li>左侧势力栏可<b>派使（关系+）·议和·结盟·宣战</b>。同盟国不会被攻击；关系低于 -28 的邻国可能对你宣战。</li>'+
+ '<li><b>威望</b>越高政令越多。民心低于30会生乱；缺粮则士卒逃散。</li>'+
+ '<li>进攻相邻敌城时可<b>出兵</b>：选择出兵数量、兵种编成与随军武将后进入战场。</li></ul>'+
+ '<h3>2. 战术层（战斗）</h3><ul>'+
+ '<li>回合制棋盘。<b>每队每回合一次</b>：移动后攻击，或仅攻击。</li>'+
+ '<li>摧毁敌军<b>本营</b>、使其<b>士气</b>归零、或击败所有敌军即为胜。26 回合内未决出胜负则攻方退兵。</li>'+
+ '<li>部队兵种须在出兵前编成，战斗中不能生产新兵。占领村落可作为恢复据点。</li>'+
+ '<li>战事拖延则<b>攻城与消耗加剧</b>，僵局自会分出结果。</li></ul>'+
+ '<h3>3. 兵种与相克</h3>{units}<p><b>骑兵克步兵，枪兵破骑兵，步兵克弓兵，弓兵射枪兵</b>。近战攻击会遭幸存者<b>反击</b>（远程不受反击）。骑兵不能进入山地。</p>'+
+ '<h3>4. 武将与战法</h3><p>随军武将的<b>统率·武力</b>会强化士卒。每季累积的<b>军略</b>可发动下列战法之一：</p>{skills}<p>俘获的武将可<b>任用／释放／处斩</b>。处斩会使各国戒备。</p>'+
+ '<h3>5. 内政一览</h3>{devs}<p>攻打<b>城壁 3 以上</b>的城池会形成<b>攻城战</b>（战场有城墙与城门）。</p>'+
+ '<h3>6. 保存与音效</h3><ul><li>进度自动保存在<b>本机的浏览器</b>中，不会发送到网络。战斗途中也可复原。</li>'+
+ '<li>音效（♪）与音乐（♫）可分别开关，设置会被保存。</li></ul>'+
+ '<h3>操作</h3><ul><li>战略：点选城池，在右侧面板使用政令。<kbd>N</kbd> 结束季度，<kbd>S</kbd> 保存。</li>'+
+ '<li>战斗：点选部队→点绿格移动／点黄格攻击；再点一次取消。<kbd>Space</kbd> 结束回合／<kbd>U</kbd> 撤销／<kbd>Esc</kbd> 取消。</li>'+
+ '<li>战场放不进画面时，只有棋盘可以滑动。</li></ul>'
+};
+/* 翻訳値の解決：都市名・国名・将軍名・兵科名などは表示時に自動で言語化する */
+function resolveVal(v){
+  if(typeof v!=='string') return v;
+  var s=findState(v); if(s) return s.n[LANG]||s.n.en;
+  var c=findCity(v); if(c) return c.n[LANG]||c.n.en;
+  for(var i=0;i<GENERALS.length;i++) if(GENERALS[i].k===v) return GENERALS[i].n[LANG]||GENERALS[i].n.en;
+  if(TYPES[v]) return TYPES[v].n[LANG];
+  if(has(SEASONS,v)) return t('sea_'+v);
+  if(SKILLS[v]) return SKILLS[v].n[LANG];
+  if(TERRAIN[v]) return TERRAIN[v].n[LANG];
+  if(has(['camp','rout','elim','stale','retreat'],v)) return t('rsn_'+v);
+  if(DEV[v]) return t('dev_'+v);
+  if(v==='p'||v==='e') return t(v==='p'?'r_att':'r_def');
+  return v;
+}
+function t(k,p){
+  var L=I18N[LANG]||I18N.ja, s=L[k];
+  if(s===undefined&&I18N.ja) s=I18N.ja[k];
+  if(s===undefined) return k;
+  if(p){
+    var q={};
+    for(var kk in p) q[kk]=resolveVal(p[kk]);
+    s=s.replace(/\{(\w+)\}/g,function(m,n){ return (q[n]===undefined||q[n]===null)?m:''+q[n]; });
+  }
+  return s;
+}
+
+/* =====================================================================
+   2. 固定データ
+   ===================================================================== */
+var MAP_W=44, MAP_H=26, TILE=16;        // 戦略マップ（内部解像度 704x416）
+var SEASONS=['spring','summer','autumn','winter'];
+
+var STATES=[
+  {k:'qin',  n:{ja:'秦',  en:'Qin',  zh:'秦'},  cap:'xianyang', col:'#e0763f', ai:'aggressive'},
+  {k:'zhao', n:{ja:'趙',  en:'Zhao', zh:'赵'},  cap:'handan',   col:'#4fb58c', ai:'military'},
+  {k:'wei',  n:{ja:'魏',  en:'Wei',  zh:'魏'},  cap:'daliang',  col:'#e0c05a', ai:'balanced'},
+  {k:'han',  n:{ja:'韓',  en:'Han',  zh:'韩'},  cap:'xinzheng', col:'#9fa9c4', ai:'cautious'},
+  {k:'qi',   n:{ja:'斉',  en:'Qi',   zh:'齐'},  cap:'linzi',    col:'#48a7dc', ai:'merchant'},
+  {k:'yan',  n:{ja:'燕',  en:'Yan',  zh:'燕'},  cap:'ji',       col:'#a07ad8', ai:'cautious'},
+  {k:'chu',  n:{ja:'楚',  en:'Chu',  zh:'楚'},  cap:'ying',     col:'#d3597a', ai:'aggressive'}
+];
+
+/* 都市: n=表記(ja/en/zh), x,y はマップタイル座標, home=初期領有, pop=人口, garr=初期守備 */
+var CITIES=[
+  {k:'xianyang',n:{ja:'咸陽',en:'Xianyang',zh:'咸阳'},x:6, y:12,home:'qin', pop:34,garr:26,walls:3,farms:2,town:3,trade:1},
+  {k:'liyang',  n:{ja:'櫟陽',en:'Liyang',zh:'栎阳'},x:9, y:11,home:'qin', pop:20,garr:14,walls:2,farms:3,town:2,trade:0},
+  {k:'longxi',  n:{ja:'隴西',en:'Longxi',zh:'陇西'},x:2, y:14,home:'qin', pop:12,garr:10,walls:1,farms:2,town:1,trade:0},
+  {k:'shangyu', n:{ja:'商於',en:'Shangyu',zh:'商於'},x:11,y:15,home:'qin', pop:13,garr:12,walls:2,farms:2,town:1,trade:0},
+
+  {k:'handan',  n:{ja:'邯鄲',en:'Handan',zh:'邯郸'},x:21,y:9, home:'zhao',pop:30,garr:26,walls:3,farms:2,town:3,trade:0},
+  {k:'shangdang',n:{ja:'上黨',en:'Shangdang',zh:'上党'},x:16,y:10,home:'zhao',pop:15,garr:14,walls:2,farms:2,town:1,trade:0},
+  {k:'yunzhong',n:{ja:'雲中',en:'Yunzhong',zh:'云中'},x:11,y:5, home:'zhao',pop:11,garr:12,walls:1,farms:1,town:1,trade:0,frontier:1},
+  {k:'dai',     n:{ja:'代',en:'Dai',zh:'代'},    x:20,y:4, home:'zhao',pop:13,garr:12,walls:1,farms:1,town:1,trade:0,frontier:1},
+
+  {k:'daliang', n:{ja:'大梁',en:'Daliang',zh:'大梁'},x:25,y:13,home:'wei', pop:36,garr:24,walls:3,farms:3,town:4,trade:1},
+  {k:'anyi',    n:{ja:'安邑',en:'Anyi',zh:'安邑'},  x:14,y:12,home:'wei', pop:18,garr:14,walls:2,farms:3,town:2,trade:0},
+  {k:'suanzao', n:{ja:'酸棗',en:'Suanzao',zh:'酸枣'},x:21,y:12,home:'wei', pop:16,garr:12,walls:2,farms:2,town:2,trade:0},
+
+  {k:'xinzheng',n:{ja:'新鄭',en:'Xinzheng',zh:'新郑'},x:20,y:14,home:'han', pop:28,garr:22,walls:3,farms:2,town:3,trade:0},
+  {k:'yiyang',  n:{ja:'宜陽',en:'Yiyang',zh:'宜阳'},x:15,y:13,home:'han', pop:15,garr:12,walls:2,farms:2,town:2,trade:0},
+  {k:'shangcai',n:{ja:'上蔡',en:'Shangcai',zh:'上蔡'},x:23,y:17,home:'han', pop:14,garr:10,walls:1,farms:3,town:1,trade:0},
+
+  {k:'linzi',   n:{ja:'臨淄',en:'Linzi',zh:'临淄'},x:33,y:10,home:'qi',  pop:38,garr:22,walls:3,farms:3,town:5,trade:1},
+  {k:'jimo',    n:{ja:'即墨',en:'Jimo',zh:'即墨'},  x:38,y:8, home:'qi',  pop:16,garr:12,walls:2,farms:2,town:2,trade:0},
+  {k:'dingtao', n:{ja:'定陶',en:'Dingtao',zh:'定陶'},x:28,y:12,home:'qi', pop:22,garr:12,walls:2,farms:3,town:4,trade:1},
+  {k:'ju',      n:{ja:'莒',en:'Ju',zh:'莒'},      x:35,y:15,home:'qi',  pop:13,garr:10,walls:1,farms:2,town:2,trade:0},
+
+  {k:'ji',      n:{ja:'薊',en:'Ji',zh:'蓟'},      x:30,y:4, home:'yan', pop:24,garr:20,walls:3,farms:2,town:2,trade:0},
+  {k:'yuyang',  n:{ja:'漁陽',en:'Yuyang',zh:'渔阳'},x:34,y:3, home:'yan', pop:13,garr:12,walls:1,farms:1,town:1,trade:0,frontier:1},
+  {k:'liaodong',n:{ja:'遼東',en:'Liaodong',zh:'辽东'},x:39,y:2,home:'yan', pop:10,garr:10,walls:1,farms:1,town:1,trade:0,frontier:1},
+
+  {k:'ying',    n:{ja:'郢',en:'Ying',zh:'郢'},    x:18,y:19,home:'chu', pop:34,garr:26,walls:3,farms:3,town:3,trade:0},
+  {k:'chen',    n:{ja:'陳',en:'Chen',zh:'陈'},    x:24,y:16,home:'chu', pop:22,garr:16,walls:2,farms:3,town:2,trade:0},
+  {k:'shouchun',n:{ja:'壽春',en:'Shouchun',zh:'寿春'},x:29,y:18,home:'chu',pop:24,garr:14,walls:2,farms:3,town:3,trade:0},
+  {k:'qianzhong',n:{ja:'黔中',en:'Qianzhong',zh:'黔中'},x:12,y:22,home:'chu',pop:14,garr:10,walls:1,farms:2,town:1,trade:0}
+];
+
+/* 街道（隣接関係）。t=地形: plain / hill / mountain / river */
+var LINKS=[
+  ['longxi','xianyang','mountain'], ['xianyang','liyang','plain'],   ['liyang','anyi','river'],
+  ['xianyang','shangyu','mountain'],['shangyu','yiyang','mountain'], ['shangyu','ying','mountain'],
+  ['yunzhong','dai','mountain'],    ['yunzhong','shangdang','mountain'], ['dai','ji','mountain'],
+  ['shangdang','handan','mountain'],['shangdang','anyi','mountain'],  ['shangdang','yiyang','mountain'],
+  ['handan','dai','hill'],          ['handan','suanzao','plain'],     ['handan','ji','hill'],
+  ['anyi','suanzao','river'],       ['suanzao','daliang','plain'],    ['suanzao','xinzheng','plain'],
+  ['daliang','dingtao','plain'],    ['daliang','xinzheng','plain'],   ['daliang','chen','river'],
+  ['xinzheng','yiyang','hill'],     ['xinzheng','shangcai','plain'],  ['yiyang','anyi','mountain'],
+  ['shangcai','chen','plain'],      ['shangcai','ying','hill'],
+  ['linzi','jimo','hill'],          ['linzi','dingtao','plain'],      ['linzi','ju','hill'],
+  ['linzi','ji','plain'],           ['dingtao','suanzao','plain'],    ['dingtao','chen','river'],
+  ['ju','shouchun','river'],        ['ju','chen','plain'],
+  ['ji','yuyang','hill'],           ['yuyang','liaodong','mountain'], ['yuyang','jimo','river'],
+  ['ying','qianzhong','hill'],      ['ying','chen','river'],          ['chen','shouchun','river'],
+  ['shouchun','linzi','river'],     ['qianzhong','shangyu','mountain']
+];
+
+/* 将軍: lead=統率 war=武力 int=知略 / skill=戦法キー */
+var GENERALS=[
+  {k:'baiqi',   n:{ja:'白起', en:'Bai Qi',     zh:'白起'},   side:'qin', city:'xianyang', lead:9,war:10,int:7, skill:'charge'},
+  {k:'wangjian',n:{ja:'王翦', en:'Wang Jian',  zh:'王翦'},   side:'qin', city:'liyang',   lead:9,war:7, int:8, skill:'rally'},
+  {k:'weiren',  n:{ja:'魏冉', en:'Wei Ran',    zh:'魏冉'},   side:'qin', city:'shangyu',  lead:7,war:7, int:7, skill:'surprise'},
+  {k:'mengtian',n:{ja:'蒙恬', en:'Meng Tian',  zh:'蒙恬'},   side:'qin', city:'longxi',   lead:8,war:8, int:6, skill:'rally'},
+
+  {k:'liampo',  n:{ja:'廉頗', en:'Lian Po',    zh:'廉颇'},   side:'zhao',city:'handan',   lead:9,war:9, int:6, skill:'rally'},
+  {k:'limu',    n:{ja:'李牧', en:'Li Mu',      zh:'李牧'},   side:'zhao',city:'dai',      lead:9,war:8, int:9, skill:'surprise'},
+  {k:'zhaoShe', n:{ja:'趙奢', en:'Zhao She',   zh:'赵奢'},   side:'zhao',city:'shangdang',lead:8,war:7, int:8, skill:'fire'},
+
+  {k:'xinling', n:{ja:'信陵君',en:'Lord Xinling',zh:'信陵君'},side:'wei',city:'daliang',  lead:8,war:7, int:8, skill:'rally'},
+  {k:'pangjuan',n:{ja:'龐涓', en:'Pang Juan',  zh:'庞涓'},   side:'wei',city:'suanzao',  lead:7,war:7, int:6, skill:'charge'},
+  {k:'yueyang', n:{ja:'樂羊', en:'Yue Yang',   zh:'乐羊'},   side:'wei',city:'anyi',     lead:7,war:6, int:7, skill:'fire'},
+
+  {k:'shenbuhai',n:{ja:'申不害',en:'Shen Buhai',zh:'申不害'},side:'han',city:'xinzheng', lead:6,war:5, int:9, skill:'fire'},
+  {k:'baoyuan', n:{ja:'暴鸢', en:'Bao Yuan',   zh:'暴鸢'},   side:'han',city:'yiyang',   lead:7,war:8, int:5, skill:'charge'},
+  {k:'gongzhong',n:{ja:'公仲侈',en:'Gongzhong Chi',zh:'公仲侈'},side:'han',city:'shangcai',lead:6,war:6,int:7, skill:'rally'},
+
+  {k:'tianji',  n:{ja:'田忌', en:'Tian Ji',    zh:'田忌'},   side:'qi', city:'linzi',    lead:8,war:8, int:7, skill:'charge'},
+  {k:'sunbin',  n:{ja:'孫臏', en:'Sun Bin',    zh:'孙膑'},   side:'qi', city:'dingtao',  lead:8,war:6, int:10,skill:'surprise'},
+  {k:'kuangzhang',n:{ja:'匡章',en:'Kuang Zhang',zh:'匡章'},  side:'qi', city:'ju',       lead:7,war:7, int:7, skill:'fire'},
+
+  {k:'yueyi',   n:{ja:'楽毅', en:'Yue Yi',     zh:'乐毅'},   side:'yan',city:'ji',       lead:10,war:8,int:9, skill:'surprise'},
+  {k:'qinkai',  n:{ja:'秦開', en:'Qin Kai',    zh:'秦开'},   side:'yan',city:'yuyang',   lead:8,war:8, int:6, skill:'charge'},
+  {k:'jijie',   n:{ja:'騎劫', en:'Ji Jie',     zh:'骑劫'},   side:'yan',city:'liaodong', lead:5,war:6, int:4, skill:'rally'},
+
+  {k:'xiangyan',n:{ja:'項燕', en:'Xiang Yan',  zh:'项燕'},   side:'chu',city:'ying',     lead:9,war:9, int:7, skill:'charge'},
+  {k:'zhaoyang',n:{ja:'昭陽', en:'Zhao Yang',  zh:'昭阳'},   side:'chu',city:'chen',     lead:8,war:8, int:7, skill:'fire'},
+  {k:'yangyouji',n:{ja:'養由基',en:'Yang Youji',zh:'养由基'}, side:'chu',city:'shouchun', lead:6,war:9, int:6, skill:'fire'},
+  {k:'chunshen',n:{ja:'春申君',en:'Lord Chunshen',zh:'春申君'},side:'chu',city:'qianzhong',lead:7,war:6,int:8, skill:'rally'},
+
+  {k:'wuqi',    n:{ja:'呉起', en:'Wu Qi',      zh:'吴起'},   side:null,  city:null,      lead:10,war:9,int:8, skill:'charge', wander:1},
+  {k:'guiguzi', n:{ja:'鬼谷子',en:'Guiguzi',   zh:'鬼谷子'}, side:null,  city:null,      lead:7,war:4,int:10,skill:'fire',   wander:1},
+  {k:'fanju',   n:{ja:'范雎', en:'Fan Ju',     zh:'范雎'},   side:null,  city:null,      lead:5,war:3,int:9, skill:'surprise',wander:1},
+  {k:'sujin',   n:{ja:'蘇秦', en:'Su Qin',     zh:'苏秦'},   side:null,  city:null,      lead:4,war:3,int:9, skill:'rally',  wander:1}
+];
+
+var SKILLS={
+  fire:    {cost:3,kind:'target',n:{ja:'火計', en:'Fire Attack', zh:'火计'}},
+  charge:  {cost:2,kind:'unit',  n:{ja:'突騎', en:'Iron Charge', zh:'突骑'}},
+  rally:   {cost:2,kind:'self',  n:{ja:'守城', en:'Last Stand',  zh:'死守'}},
+  surprise:{cost:3,kind:'self',  n:{ja:'奇襲', en:'Ambush',      zh:'奇袭'}}
+};
+
+/* 戦闘地形 */
+var TERRAIN={
+  plain:   {cost:1,def:0,glyph:'',       n:{ja:'平野',en:'plain', zh:'平原'}},
+  forest:  {cost:2,def:2,glyph:'f',      n:{ja:'森',  en:'forest',zh:'森林'}},
+  mountain:{cost:3,def:3,glyph:'m',      n:{ja:'山',  en:'mountain',zh:'山地'}},
+  water:   {cost:Infinity,def:0,glyph:'w',n:{ja:'河', en:'river', zh:'河流'}},
+  village: {cost:1,def:1,glyph:'v',      n:{ja:'村',  en:'village',zh:'村落'}},
+  wall:    {cost:Infinity,def:0,glyph:'H',n:{ja:'城壁',en:'wall',  zh:'城墙'}},
+  gate:    {cost:1,def:2,glyph:'g',      n:{ja:'門',  en:'gate',   zh:'城门'}},
+  base:    {cost:1,def:2,glyph:'b',      n:{ja:'本営',en:'camp',   zh:'本营'}}
+};
+/* 兵科 */
+var TYPES={
+  inf:{key:'inf',n:{ja:'步兵',en:'Infantry',zh:'步兵'},glyph:'步',move:3,range:1,atk:6, hp:20},
+  arc:{key:'arc',n:{ja:'弓兵',en:'Archers', zh:'弓兵'},glyph:'弓',move:2,range:2,atk:7, hp:16},
+  cav:{key:'cav',n:{ja:'騎兵',en:'Cavalry', zh:'骑兵'},glyph:'骑',move:4,range:1,atk:9, hp:26,noMountain:1},
+  spc:{key:'spc',n:{ja:'槍兵',en:'Spearmen',zh:'枪兵'},glyph:'枪',move:3,range:1,atk:8, hp:34}
+};
+var TKEYS=['inf','arc','cav','spc'];
+/* 三すくみ+弓: 騎>歩>弓>槍>騎 */
+var CNT={
+  inf:{inf:1.00,arc:1.30,cav:1.00,spc:0.85},
+  arc:{inf:0.80,arc:1.00,cav:0.90,spc:1.30},
+  cav:{inf:1.35,arc:1.25,cav:1.00,spc:0.50},
+  spc:{inf:1.15,arc:0.85,cav:1.60,spc:1.00}
+};
+var DIFF={
+  easy:  {aiPol:2, aiIncome:0.80, noise:0.55, blunder:0.35, aggro:0.55, n:{ja:'やさしい',en:'Easy',zh:'简单'}},
+  normal:{aiPol:3, aiIncome:1.00, noise:0.22, blunder:0.12, aggro:0.85, n:{ja:'ふつう',  en:'Normal',zh:'普通'}},
+  hard:  {aiPol:4, aiIncome:1.25, noise:0.05, blunder:0.0,  aggro:1.15, n:{ja:'むずかしい',en:'Hard',zh:'困难'}}
+};
+
+/* ---------- ドット絵（兵）: 12x12 ---------- */
+var SPR_ART={
+  inf:["....oooo..m.","...ommmmo.w.","...osssso.w.","...osddso.w.","..gocccco.w.",".olccccco.w.",".olccccco.w.",".olccddco.w.","..occddco.w.","..oo..oo..w.",".ooo..ooo.w.","............"],
+  arc:["....oooo..m.","..gommmmo.w.","..kosssso.w.","..kosddso.w.","..gocccco.w.",".odclccco.w.",".odccccco.w.","..oclccco.w.","..occddco.w.","..oo..oo..m.",".ooo..ooo...","............"],
+  cav:["............","....oooo..m.","...ommmmo.w.","...osddso.w.","...occcco.w.","..ogcccchhwo","..odcccchhho",".odddccchhho","..occcccchh.","..occcccchh.","...o.h.hh.h.","...o.h.h..h."],
+  spc:["....oggo....","...ommmmo.m.","...osddso.m.","..oomcccomg.",".oldccccmo..",".olldccco...",".olldccco...",".oldcccdo...","..ocddco....","..oo.oo.....",".ooo.ooo....","............"]
+};
+var SPR_PAL={o:'#161018',s:'#e8c39a',m:'#b8bfc7',w:'#7b5230',k:'#3c2c22',h:'#8a5c33',g:'#e0b95a',d:'#000'};
+var SPR_CACHE={};
+function spriteUri(type,team){
+  var key=type+team;
+  if(SPR_CACHE[key]) return SPR_CACHE[key];
+  var art=SPR_ART[type], rects='', y, x;
+  for(y=0;y<art.length;y++){
+    var row=art[y]; x=0;
+    while(x<row.length){
+      var ch=row.charAt(x);
+      if(ch===' '||ch==='.'){ x++; continue; }
+      var x2=x; while(x2<row.length&&row.charAt(x2)===ch) x2++;
+      var col=(ch==='c')?team.c:(ch==='d')?team.d:(ch==='l')?team.l:(SPR_PAL[ch]||'#000');
+      rects+="<rect x='"+x+"' y='"+y+"' width='"+(x2-x)+"' height='1' fill='"+col+"'/>";
+      x=x2;
+    }
+  }
+  var svg="<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'>"+rects+'</svg>';
+  SPR_CACHE[key]='data:image/svg+xml,'+encodeURIComponent(svg);
+  return SPR_CACHE[key];
+}
+/* =====================================================================
+   3. ローカル保存（この端末のブラウザ保存領域だけ／ネットワーク送信なし）
+   ===================================================================== */
+var LS_P='wsr_profile_v1', LS_S='wsr_save_v1';
+function lsGet(k){ try{ if(typeof localStorage==='undefined'||!localStorage) return null; return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ if(typeof localStorage==='undefined'||!localStorage) return false; localStorage.setItem(k,v); return true; }catch(e){ return false; } }
+function lsDel(k){ try{ if(typeof localStorage!=='undefined'&&localStorage) localStorage.removeItem(k); }catch(e){} }
+
+var PROF={lang:null,sound:true,bgm:false,diff:'normal',state:'wei',wins:0,runs:0};
+function loadProfile(){
+  var raw=lsGet(LS_P);
+  if(raw){ try{ var o=JSON.parse(raw); if(o&&typeof o==='object'){ for(var k in o) if(k in PROF) PROF[k]=o[k]; } }catch(e){} }
+  if(PROF.sound===undefined) PROF.sound=true;
+  if(PROF.bgm===undefined) PROF.bgm=false;
+  if(!DIFF[PROF.diff]) PROF.diff='normal';
+  if(!findState(PROF.state)) PROF.state='wei';
+}
+function saveProfile(){ lsSet(LS_P,JSON.stringify(PROF)); }
+
+var SAVE_OK=false;
+function saveGame(silent){
+  if(!S) return false;
+  var ok=lsSet(LS_S,JSON.stringify(S));
+  SAVE_OK=ok;
+  if(!silent){ flashSaved(t(ok?'saved':'save_fail')); }
+  return ok;
+}
+function loadSave(){
+  var raw=lsGet(LS_S); if(!raw) return null;
+  try{
+    var o=JSON.parse(raw);
+    if(o&&o.cities&&o.st&&o.me&&o.st[o.me]&&typeof o.turn==='number'&&o.ui) return o;
+  }catch(e){}
+  return null;
+}
+function wipeAll(){ lsDel(LS_S); PROF.wins=0; PROF.runs=0; saveProfile(); }
+
+/* =====================================================================
+   4. サウンド（WebAudio 合成。ファイル不要・OFF 可・設定は保存）
+   ===================================================================== */
+var AC=null, BG={on:false,timer:null,step:0,nodes:[]};
+var SND={on:true};
+function audioCtx(){
+  if(!SND.on) return null;
+  if(AC) return AC;
+  try{
+    var W=(typeof window!=='undefined')?window:null;
+    var C=W&&(W.AudioContext||W.webkitAudioContext);
+    if(!C) return null;
+    AC=new C();
+  }catch(e){ AC=null; }
+  return AC;
+}
+function unlockAudio(){ var c=audioCtx(); if(c&&c.state==='suspended'&&c.resume){ try{ c.resume(); }catch(e){} } }
+function tone(o){
+  var c=audioCtx(); if(!c) return;
+  try{
+    var t0=c.currentTime+(o.at||0), d=o.d||0.1;
+    var osc=c.createOscillator(), g=c.createGain();
+    osc.type=o.type||'square';
+    osc.frequency.setValueAtTime(o.f,t0);
+    if(o.f2) osc.frequency.exponentialRampToValueAtTime(Math.max(24,o.f2),t0+d);
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.exponentialRampToValueAtTime(o.g||0.05,t0+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001,t0+d);
+    osc.connect(g); g.connect(c.destination);
+    osc.start(t0); osc.stop(t0+d+0.02);
+  }catch(e){}
+}
+function noise(o){
+  var c=audioCtx(); if(!c||!c.createBuffer) return;
+  try{
+    var d=o.d||0.12, n=Math.max(1,Math.floor((c.sampleRate||44100)*d)), i;
+    var buf=c.createBuffer(1,n,c.sampleRate), ch=buf.getChannelData(0);
+    for(i=0;i<n;i++) ch[i]=(Math.random()*2-1)*(1-i/n);
+    var src=c.createBufferSource(); src.buffer=buf;
+    var f=c.createBiquadFilter(); f.type=o.hp?'highpass':'lowpass'; f.frequency.value=o.cut||900;
+    var g=c.createGain(); g.gain.value=o.g||0.05;
+    src.connect(f); f.connect(g); g.connect(c.destination);
+    src.start(c.currentTime+(o.at||0));
+  }catch(e){}
+}
+var PENTA=[0,3,5,7,10,12,15,17];       //  pentatonic（宮声調）
+var SFX={
+  ui:function(){ tone({f:520,d:0.05,type:'triangle',g:0.03}); },
+  sel:function(){ tone({f:660,f2:880,d:0.06,g:0.045}); },
+  unsel:function(){ tone({f:520,f2:360,d:0.06,g:0.03}); },
+  move:function(){ tone({f:250,f2:170,d:0.09,type:'sine',g:0.05}); noise({d:0.05,g:0.02,cut:600}); },
+  recruit:function(){ tone({f:420,f2:760,d:0.12,type:'triangle',g:0.05}); },
+  atk:function(){ tone({f:820,f2:230,d:0.1,type:'sawtooth',g:0.045}); noise({d:0.07,g:0.04,cut:1600,hp:1}); },
+  hit:function(){ noise({d:0.12,g:0.05,cut:700}); tone({f:150,f2:92,d:0.11,type:'square',g:0.035}); },
+  counter:function(){ tone({f:600,f2:330,d:0.08,type:'triangle',g:0.03}); },
+  kill:function(){ tone({f:300,f2:70,d:0.26,type:'sawtooth',g:0.05}); noise({d:0.18,g:0.045,cut:520}); },
+  base:function(){ tone({f:118,f2:60,d:0.32,type:'square',g:0.06}); noise({d:0.24,g:0.05,cut:420}); },
+  skill:function(){ [784,988,1319].forEach(function(f,i){ tone({f:f,d:0.13,type:'triangle',g:0.05,at:i*0.07}); }); },
+  fire:function(){ noise({d:0.34,g:0.06,cut:1100}); tone({f:90,f2:48,d:0.3,type:'sawtooth',g:0.05}); },
+  turn:function(){ tone({f:560,d:0.09,type:'sine',g:0.04}); tone({f:784,d:0.11,type:'sine',g:0.036,at:0.1}); },
+  turnE:function(){ tone({f:300,d:0.1,type:'sine',g:0.04}); tone({f:236,d:0.12,type:'sine',g:0.032,at:0.1}); },
+  season:function(){ [392,523,659].forEach(function(f,i){ tone({f:f,d:0.16,type:'triangle',g:0.04,at:i*0.1}); }); },
+  err:function(){ tone({f:180,d:0.09,type:'square',g:0.04}); tone({f:146,d:0.09,type:'square',g:0.034,at:0.09}); },
+  coin:function(){ tone({f:1180,f2:1560,d:0.07,type:'triangle',g:0.035}); },
+  build:function(){ tone({f:300,f2:420,d:0.08,type:'square',g:0.04}); noise({d:0.09,g:0.03,cut:900}); },
+  event:function(){ tone({f:880,d:0.1,type:'triangle',g:0.04}); tone({f:660,d:0.14,type:'triangle',g:0.036,at:0.12}); },
+  win:function(){ [523,659,784,1047,1319].forEach(function(f,i){ tone({f:f,d:0.2,type:'triangle',g:0.055,at:i*0.13}); }); },
+  lose:function(){ [440,392,311,233,196].forEach(function(f,i){ tone({f:f,d:0.24,type:'sine',g:0.05,at:i*0.16}); }); },
+  march:function(){ tone({f:196,f2:262,d:0.16,type:'square',g:0.045}); noise({d:0.1,g:0.03,cut:500}); }
+};
+function sfx(name){ if(!SND.on) return; var f=SFX[name]; if(f){ try{ f(); }catch(e){} } }
+
+/* 簡素な BGM（五音音階のループ、ファイル不要） */
+function bgmStart(){
+  if(!PROF.bgm||!SND.on){ bgmStop(); return; }
+  var c=audioCtx(); if(!c){ return; }
+  if(BG.on) return;
+  BG.on=true; BG.step=0;
+  try{
+    var master=c.createGain(); master.gain.value=0.055; master.connect(c.destination);
+    BG.master=master;
+    BG.timer=setInterval(bgmTick,430);
+    bgmTick();
+  }catch(e){ BG.on=false; }
+}
+function bgmStop(){
+  BG.on=false;
+  if(BG.timer){ try{ clearInterval(BG.timer); }catch(e){} BG.timer=null; }
+  BG.nodes.forEach(function(n){ try{ n.stop(); }catch(e){} });
+  BG.nodes=[];
+  if(BG.master){ try{ BG.master.disconnect(); }catch(e){} BG.master=null; }
+}
+function bgmTick(){
+  var c=audioCtx(); if(!c||!BG.on||!BG.master) return;
+  try{
+    var base=196, i=BG.step++;
+    var seq=[0,4,2,5,3,7,4,2];
+    var deg=seq[i%8];
+    var f=base*Math.pow(2,PENTA[deg%PENTA.length]/12);
+    var t0=c.currentTime, len=0.42;
+    var o=c.createOscillator(), g=c.createGain();
+    o.type=(i%4===0)?'triangle':'sine';
+    o.frequency.value=f;
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.exponentialRampToValueAtTime(0.5,t0+0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001,t0+len);
+    o.connect(g); g.connect(BG.master); o.start(t0); o.stop(t0+len+0.02);
+    BG.nodes.push(o); if(BG.nodes.length>8) BG.nodes.shift();
+    if(i%8===0){
+      var d=c.createOscillator(), dg=c.createGain();
+      d.type='square'; d.frequency.value=base/2;
+      dg.gain.setValueAtTime(0.0001,t0); dg.gain.exponentialRampToValueAtTime(0.22,t0+0.02);
+      dg.gain.exponentialRampToValueAtTime(0.0001,t0+0.85);
+      d.connect(dg); dg.connect(BG.master); d.start(t0); d.stop(t0+0.9);
+      BG.nodes.push(d);
+    }
+  }catch(e){}
+}
+function setSfx(on,remember){
+  SND.on=!!on; PROF.sound=SND.on; if(remember!==false) saveProfile();
+  if(SND.on){ unlockAudio(); bgmStart(); if(remember!==false) sfx('ui'); } else { bgmStop(); }
+  soundLabels();
+}
+function setBgm(on,remember){
+  PROF.bgm=!!on; if(remember!==false) saveProfile();
+  if(PROF.bgm&&SND.on){ unlockAudio(); bgmStart(); } else { bgmStop(); }
+  soundLabels();
+}
+function soundLabels(){
+  [['sfxBtn',SND.on,'♪','🔇'],['bgmBtn',PROF.bgm&&SND.on,'♫','🔈']].forEach(function(d){
+    var b=document.getElementById(d[0]); if(!b) return;
+    b.textContent=d[2]; b.title=t(d[1]?'snd_on':'snd_off'); b.value=d[1]?'on':'off';
+    if(b.classList&&b.classList.toggle){ b.classList.toggle('on',!!d[1]); b.classList.toggle('off',!d[1]); }
+    if(b.setAttribute) b.setAttribute('aria-pressed',d[1]?'true':'false');
+  });
+}
+
+/* =====================================================================
+   5. 戦略（国政）レイヤー
+   ===================================================================== */
+var S=null;
+var P='p', E='e';                      // 戦闘盤面の自軍/敵軍（常に p=人間側の陣営）
+
+function findState(k){ for(var i=0;i<STATES.length;i++) if(STATES[i].k===k) return STATES[i]; return null; }
+function findCity(k){ for(var i=0;i<CITIES.length;i++) if(CITIES[i].k===k) return CITIES[i]; return null; }
+function stateName(k){ var s=findState(k); return s? s.n[LANG]||s.n.en : '?'; }
+function cityName(k){ var c=findCity(k); return c? c.n[LANG]||c.n.en : '?'; }
+function genName(k){ for(var i=0;i<GENERALS.length;i++) if(GENERALS[i].k===k) return GENERALS[i].n[LANG]||GENERALS[i].n.en; return '?'; }
+function genData(k){ for(var i=0;i<GENERALS.length;i++) if(GENERALS[i].k===k) return GENERALS[i]; return null; }
+function pk(a,b){ return a<b?a+'|'+b:b+'|'+a; }
+function logLine(k,p){
+  if(!S) return;
+  S.log.unshift({y:S.year,s:S.season,k:k,p:p||null});
+  if(S.log.length>40) S.log.length=40;
+}
+
+/* 隣接（街道） */
+var ADJ={};
+function buildAdj(){
+  ADJ={};
+  for(var i=0;i<CITIES.length;i++) ADJ[CITIES[i].k]=[];
+  LINKS.forEach(function(L){
+    if(ADJ[L[0]]&&ADJ[L[1]]){ ADJ[L[0]].push({to:L[1],t:L[2]}); ADJ[L[1]].push({to:L[0],t:L[2]}); }
+  });
+}
+function linkInfo(a,b){
+  for(var i=0;i<ADJ[a].length;i++) if(ADJ[a][i].to===b) return ADJ[a][i];
+  return null;
+}
+function neighbors(k){ return ADJ[k]||[]; }
+
+/* 関係値のキー */
+function relOf(a,b){ return S.rel[pk(a,b)]||0; }
+function setRel(a,b,v){ S.rel[pk(a,b)]=clamp(Math.round(v),-100,100); }
+function bumpRel(a,b,d){ setRel(a,b,relOf(a,b)+d); }
+function warOf(a,b){ return S.war[pk(a,b)]||'peace'; }        // peace | war | ally | truce
+function setWar(a,b,v,until){ S.war[pk(a,b)]={s:v,t:until||0}; }
+function atWar(a,b){ var w=warOf(a,b); return w&&w.s==='war'; }
+function allied(a,b){ var w=warOf(a,b); return w&&w.s==='ally'; }
+
+/* 勢力データ */
+function st(k){ return S.st[k]; }
+function aliveStates(){ return STATES.filter(function(s){ return S.st[s.k].alive; }).map(function(s){ return s.k; }); }
+function citiesOf(k){ return CITIES.filter(function(c){ return S.cities[c.k].owner===k; }); }
+function cityDef(k){ return S.cities[k]; }
+function totalGarr(k){ return citiesOf(k).reduce(function(a,c){ return a+S.cities[c.k].garr; },0); }
+function calcPrestige(k){
+  var v=0; citiesOf(k).forEach(function(c){ v+=4+Math.round(c.pop/8)+S.cities[c.k].walls; });
+  return Math.max(0,v+S.st[k].fame);
+}
+function polMax(k){ var pr=calcPrestige(k); return 3+(pr>=55?1:0)+(pr>=100?1:0); }
+function gensAt(cityKey){ return GENERALS.filter(function(g){ var s=S.gen[g.k]; return s&&s.city===cityKey&&!s.dead; }); }
+function gensOf(k){ return GENERALS.filter(function(g){ var s=S.gen[g.k]; return s&&s.side===k&&!s.dead; }); }
+function freeGens(k){ return GENERALS.filter(function(g){ var s=S.gen[g.k]; return s&&s.side===k&&!s.dead&&(!s.city||!S.cities[s.city]||S.cities[s.city].owner!==k); }); }
+
+/* ---------- 新規ゲーム ---------- */
+function newCampaign(stateKey,diff,seedv){
+  S={
+    v:1, seed:(seedv||((Date.now()%2147483647)|0))>>>0,
+    turn:1, year:1, season:0, me:stateKey, diff:diff,
+    cities:{}, st:{}, rel:{}, war:{}, gen:{}, log:[], battle:null, over:null,
+    ui:{sel:findState(stateKey).cap, mode:null, hover:null}
+  };
+  CITIES.forEach(function(c){ S.cities[c.k]={owner:c.home,garr:c.garr,walls:c.walls,farms:c.farms,town:c.town,train:1,unrest:0}; });
+  STATES.forEach(function(s){
+    S.st[s.k]={alive:true,gold:60,food:40,men:60,pol:3,fame:0,stab:70};
+  });
+  buildAdj();
+  for(var i=0;i<STATES.length;i++) for(var j=i+1;j<STATES.length;j++){
+    var a=STATES[i].k,b=STATES[j].k;
+    S.rel[pk(a,b)] = linked(a,b) ? -15 : (ri(41)-18);
+    S.war[pk(a,b)]={s:'peace',t:0};
+  }
+  GENERALS.forEach(function(g){ S.gen[g.k]={side:g.side,city:g.city,dead:false,loyal:g.wander?0:80,captive:null,wander:!!g.wander,hidden:false}; });
+  GENERALS.filter(function(g){ return g.wander; }).slice(1).forEach(function(g){ S.gen[g.k].hidden=true; });
+  STATES.forEach(function(s){ st(s.k).pol=polMax(s.k); });
+  logLine('log_begin',{s:stateKey});
+  return S;
+}
+function linked(a,b){
+  for(var i=0;i<CITIES.length;i++){
+    var c=CITIES[i]; if(c.home!==a) continue;
+    for(var j=0;j<ADJ[c.k].length;j++) if(findCity(ADJ[c.k][j].to).home===b) return true;
+  }
+  return false;
+}
+
+/* ---------- 収入と維持費 ---------- */
+function seasonIncome(k){
+  var c, gold=0, food=0, men=0, seas=SEASONS[S.season];
+  citiesOf(k).forEach(function(c2){
+    var d=S.cities[c2.k];
+    gold += 2 + d.town*2 + c2.trade*3;
+    food += d.farms*(seas==='autumn'?5:1);
+    men  += Math.round(c2.pop/14);
+  });
+  if(seas==='winter') gold=Math.round(gold*0.85);
+  return {gold:gold,food:food,men:men};
+}
+function upkeepOf(k){ var g=totalGarr(k); return {gold:Math.ceil(g*0.30),food:Math.ceil(g*0.22)}; }
+
+function applyIncome(k){
+  var inc=seasonIncome(k), up=upkeepOf(k), s=st(k);
+  s.gold+=inc.gold-up.gold; s.food+=inc.food-up.food;
+  s.men=Math.min(200,s.men+inc.men);
+  s.pol=polMax(k);
+  if(s.food<0){
+    s.food=0; s.stab-=6;
+    citiesOf(k).forEach(function(c){ var d=S.cities[c.k]; var loss=Math.max(1,Math.round(d.garr*0.12)); d.garr=Math.max(0,d.garr-loss); });
+    if(k===S.me) logLine('log_starve',null);
+  }
+  if(s.gold<0){ s.gold=0; s.stab-=4; if(k===S.me) logLine('log_debt',null); }
+  s.stab=clamp(s.stab+2,0,100);
+}
+
+/* ---------- 内政アクション ---------- */
+function canAct(cityKey){
+  var d=S.cities[cityKey];
+  if(!d||d.owner!==S.me) return t('err_notyours');
+  var s=st(S.me);
+  if(s.pol<=0) return t('err_nopol');
+  return null;
+}
+function dev(cityKey,what){
+  var bad=canAct(cityKey); if(bad) return fail(bad);
+  var d=S.cities[cityKey], s=st(S.me), need=DEV[what];
+  if(d[what]>=5) return fail(t('err_maxed'));
+  if(s.gold<need.gold) return fail(t('err_nogold'));
+  if(what==='recruit'&&(s.men<need.men||s.food<need.food)) return fail(t('err_nomen'));
+  s.gold-=need.gold; s.pol-=1;
+  if(what==='recruit'){ s.men-=need.men; s.food-=need.food; d.garr+=8; }
+  else d[what]+=1;
+  if(what==='walls'||what==='town') s.stab=clamp(s.stab+1,0,100);
+  sfx('build');
+  logLine('log_dev',{c:cityKey,w:what});
+  renderCamp(); saveGame(true);
+  return true;
+}
+var DEV={
+  farms:{gold:12}, town:{gold:14}, walls:{gold:16}, train:{gold:10},
+  recruit:{gold:10,men:12,food:6}, appease:{gold:12}
+};
+function fail(msg){ logLine('log_fail',{m:msg}); sfx('err'); renderCamp(); return false; }
+
+function appeaseAct(cityKey){
+  var bad=canAct(cityKey); if(bad) return fail(bad);
+  var d=S.cities[cityKey], s=st(S.me);
+  if(s.gold<DEV.appease.gold) return fail(t('err_nogold'));
+  s.gold-=DEV.appease.gold; s.pol-=1; d.unrest=Math.max(0,d.unrest-30);
+  s.stab=clamp(s.stab+7,0,100);
+  sfx('coin'); logLine('log_appease',{c:cityKey}); renderCamp(); saveGame(true); return true;
+}
+/* ---------- 外交 ---------- */
+function envoyAct(other){
+  var s=st(S.me);
+  if(!st(other)||!st(other).alive) return fail(t('err_nostate'));
+  if(s.pol<1) return fail(t('err_nopol'));
+  if(s.gold<8) return fail(t('err_nogold'));
+  if(allied(S.me,other)) return fail(t('err_ally'));
+  s.gold-=8; s.pol-=1;
+  bumpRel(S.me,other,12+Math.round(genQuality(S.me)*2));
+  sfx('coin'); logLine('log_envoy',{s:other,r:relOf(S.me,other)});
+  renderCamp(); saveGame(true); return true;
+}
+function peaceAct(other){
+  var s=st(S.me), d=20+4*citiesOf(other).length;
+  if(!atWar(S.me,other)) return fail(t('err_nowar'));
+  if(s.pol<1) return fail(t('err_nopol'));
+  if(s.gold<d) return fail(t('err_nogold'));
+  var odds=peaceOdds(S.me,other);
+  if(Math.random()>odds){ s.pol-=1; s.gold=Math.max(0,s.gold-Math.round(d*0.3)); bumpRel(S.me,other,-6);
+    logLine('log_peace_reject',{s:other}); sfx('err'); renderCamp(); saveGame(true); return false; }
+  s.gold-=d; s.pol-=1;
+  setWar(S.me,other,'truce',S.turn+6); bumpRel(S.me,other,18);
+  st(other).fame-=2; s.fame+=2;
+  sfx('event'); logLine('log_peace_ok',{a:S.me,b:other});
+  renderCamp(); saveGame(true); return true;
+}
+function allianceAct(other){
+  var s=st(S.me);
+  if(!st(other)||!st(other).alive) return fail(t('err_nostate'));
+  if(atWar(S.me,other)) return fail(t('err_nowar'));
+  if(allied(S.me,other)) return fail(t('err_ally'));
+  if(relOf(S.me,other)<55) return fail(t('err_lowrel'));
+  if(s.pol<1||s.gold<10) return fail(t('err_nogold'));
+  s.gold-=10; s.pol-=1;
+  setWar(S.me,other,'ally',S.turn+10); bumpRel(S.me,other,15);
+  sfx('event'); logLine('log_ally',{a:S.me,b:other});
+  renderCamp(); saveGame(true); return true;
+}
+function peaceOdds(a,b){
+  // 戦線状況・関係・威望から講和の受け入れ確率を出す
+  var pa=powerOf(a), pb=powerOf(b);
+  var o=0.35+(pa>=pb?0.25:-0.25)+relOf(a,b)/200+0.10*(st(b).stab<45?1:0);
+  if(atWar(a,b)&&warScore(a)>2) o-=0.15;          // 優勢な側は譲らない
+  return clamp(o,0.06,0.95);
+}
+function powerOf(k){
+  var v=totalGarr(k)*1.0+citiesOf(k).length*6+calcPrestige(k)*0.4;
+  return v;
+}
+function warScore(k){                     // 開戦以来の得失（都市の増減）
+  return (citiesOf(k).length - (findState(k)?initCityCount[k]:0));
+}
+var initCityCount={};
+function snapshotInitial(){ initCityCount={}; STATES.forEach(function(s){ initCityCount[s.k]=CITIES.filter(function(c){return c.home===s.k;}).length; }); }
+
+function declareWar(a,b,surprise){
+  if(atWar(a,b)) return true;
+  setWar(a,b,'war',0); setRel(a,b,relOf(a,b)-25);
+  if(allied(b,S.me)&&a!==S.me&&st(S.me).alive){ setWar(b,S.me,'war',0); logLine('log_ally_join',{a:b,b:S.me}); }
+  st(a).fame+=2; st(b).fame-=1;
+  if(surprise){ st(a).stab=clamp(st(a).stab-6,0,100); }
+  logLine('log_war',{a:a,b:b});
+  return true;
+}
+
+/* ---------- 品質（兵の練度・将軍の質） ---------- */
+function genQuality(k){
+  var best=0;
+  gensOf(k).forEach(function(g){ var s=S.gen[g.k]; var q=g.lead+g.war+g.int; if(q>best) best=q; });
+  return best/30;
+}
+function cityQuality(ck){
+  var d=S.cities[ck], q=1+0.05*d.train+0.04*d.walls;
+  var gs=gensAt(ck);
+  if(gs.length){ var g=gs[0]; q+=0.02*(g.lead+g.war)/2; }
+  return q;
+}
+
+/* ---------- 配置転換（将軍） ---------- */
+function moveGen(genKey,toCity){
+  var s=S.gen[genKey]; if(!s||s.dead||s.side!==S.me) return fail(t('err_notyours'));
+  var d=S.cities[toCity]; if(!d||d.owner!==S.me) return fail(t('err_notyours'));
+  var bad=canAct(toCity); if(bad) return fail(bad);
+  var g=st(S.me);
+  if(s.city===toCity) return fail(t('err_samecity'));
+  g.pol-=1; s.city=toCity;
+  sfx('move'); logLine('log_genmove',{g:genKey,c:toCity});
+  renderCamp(); saveGame(true); return true;
+}
+function rewardGen(genKey){
+  var s=S.gen[genKey]; if(!s||s.dead||s.side!==S.me) return fail(t('err_notyours'));
+  var g=st(S.me), bad=canAct(s.city||S.ui.sel); if(bad) return fail(bad);
+  if(g.gold<12) return fail(t('err_nogold'));
+  g.gold-=12; g.pol-=1; s.loyal=clamp(s.loyal+14,0,100);
+  sfx('coin'); logLine('log_reward',{g:genKey});
+  renderCamp(); saveGame(true); return true;
+}
+function hireGen(genKey,cityKey){
+  var s=S.gen[genKey];
+  if(!s||s.dead||!s.wander||!s.hidden) return fail(t('err_nogen'));
+  var g=st(S.me), bad=canAct(cityKey); if(bad) return fail(bad);
+  if(g.gold<30) return fail(t('err_nogold'));
+  g.gold-=30; g.pol-=1; s.hidden=false; s.wander=false; s.side=S.me; s.city=cityKey; s.loyal=70;
+  sfx('event'); logLine('log_hire',{g:genKey,c:cityKey});
+  renderCamp(); saveGame(true); return true;
+}
+
+/* ---------- 移動 ---------- */
+function moveArmy(from,to,all){
+  var a=S.cities[from], b=S.cities[to];
+  if(!a||!b||a.owner!==S.me||b.owner!==S.me) return fail(t('err_notyours'));
+  if(!linkInfo(from,to)) return fail(t('err_noroad'));
+  var g=st(S.me), bad=canAct(from); if(bad) return fail(bad);
+  var amt=all?a.garr:Math.ceil(a.garr/2);
+  if(amt<=0) return fail(t('err_nomove'));
+  g.pol-=1; a.garr-=amt; b.garr+=amt;
+  if(!all){ /* 分兵は守備分割 */ }
+  sfx('move'); logLine(all?'log_move':'log_split',{f:from,t:to,n:amt});
+  renderCamp(); saveGame(true); return true;
+}
+
+/* ---------- 出兵（戦略→戦術への橋渡し） ---------- */
+function canAttack(from,to){
+  var a=S.cities[from], b=S.cities[to];
+  if(!a||!b) return t('err_nocity');
+  if(a.owner!==S.me) return t('err_notyours');
+  if(b.owner===S.me) return t('err_owncity');
+  if(!linkInfo(from,to)) return t('err_noroad');
+  var g=st(S.me);
+  if(g.pol<2) return t('err_nopol2');
+  if(a.garr<8) return t('err_smallarmy');
+  if(warOf(b.owner,S.me)&&warOf(b.owner,S.me).s==='truce') return t('err_truce');
+  return null;
+}
+function openSetup(from,to){
+  var err=canAttack(from,to);
+  if(err){ fail(err); return; }
+  S.ui.pending={from:from,to:to};
+  S.ui.comp=null;
+  renderSetup();
+  openOverlay('setupOv');
+}
+function startBattleFromSetup(commit,genKey){
+  var pend=S.ui.pending; if(!pend) return;
+  var err=canAttack(pend.from,pend.to);
+  if(err){ closeOverlay('setupOv'); fail(err); return; }
+  var a=S.cities[pend.from];
+  commit=clamp(commit,8,a.garr);
+  var unitCount=battleUnitCount(commit);
+  S.ui.comp=resizeArmyComp(S.ui.comp,pend.from,pend.to,unitCount);
+  if(armyCompTotal(S.ui.comp)!==unitCount){ fail(t('err_comp_size',{n:unitCount})); return; }
+  var comp=S.ui.comp;
+  if(genKey&&S.gen[genKey]) S.gen[genKey].city=pend.from;
+  st(S.me).pol-=2;
+  a.garr-=commit;
+  closeOverlay('setupOv');
+  var foe=S.cities[pend.to].owner;
+  if(!atWar(S.me,foe)){ declareWar(S.me,foe,true); logLine('log_surprise',{s:foe}); }
+  sfx('march');
+  logLine('log_march',{f:pend.from,t:pend.to,n:commit});
+  startBattle(pend.from,pend.to,commit,genKey,comp);
+}
+
+/* ---------- 戦闘結果を戦略レイヤーへ反映 ---------- */
+function applyBattleResult(B){
+  var ck=B.city, atkState=B.att, defState=B.def;
+  var meAtk=(B.meSide==='p')===B.attIsMe;
+  var attWin=!!(B.over&&B.over.winner==='att');
+  var losses=B.losses||{p:0,e:0};
+  var attSurv=Math.max(0,B.commit.p-losses.p), defSurv=Math.max(0,B.commit.e-losses.e);
+  var msg=[];
+  if(attWin){
+    var prevOwner=S.cities[ck].owner;
+    S.cities[ck].owner=atkState;
+    S.cities[ck].garr=Math.max(4,attSurv);
+    S.cities[ck].unrest=clamp(S.cities[ck].unrest+22,0,100);
+    st(atkState).fame+=8; st(defState).fame-=8;
+    st(atkState).wins=(st(atkState).wins||0)+1;
+    logLine('log_take',{a:atkState,c:ck,d:defState});
+    msg.push({k:'res_take',p:{c:ck}});
+    if(B.gen.e&&Math.random()<0.45) captureGeneral(B.gen.e,atkState);
+    if(findState(prevOwner)&&findState(prevOwner).cap===ck&&prevOwner!==atkState) annexState(prevOwner,atkState,msg);
+  }else{
+    S.cities[B.from].garr+=attSurv;
+    S.cities[ck].garr=Math.max(0,defSurv);
+    st(defState).fame+=5; st(atkState).fame-=4;
+    logLine('log_repel',{d:defState,a:atkState,c:ck});
+    msg.push({k:'res_repel',p:{c:ck}});
+    if(B.gen.p&&Math.random()<0.28) captureGeneral(B.gen.p,defState);
+  }
+  return {attWin:attWin,attLoss:losses.p,defLoss:losses.e,attSurv:attSurv,defSurv:defSurv,msg:msg};
+}
+function captureGeneral(gk,winner){
+  if(!gk||!S.gen[gk]) return;
+  var g=S.gen[gk];
+  if(g.dead) return;
+  g.captive=winner; g.city=null;
+  if(winner===S.me){
+    g.pendingCapt=1; S.captives=(S.captives||[]); S.captives.push(gk);
+    logLine('log_cap_gen',{g:gk});
+  }else if(Math.random()<0.5){
+    g.side=winner; g.loyal=45; g.city=findState(winner).cap;
+    logLine('log_gen_defect',{g:gk,s:winner});
+  }else{
+    g.dead=true; logLine('log_gen_dead',{g:gk});
+  }
+}
+function annexState(loser,winner,msg){
+  if(!st(loser)||!st(loser).alive||loser===winner) return;
+  citiesOf(loser).forEach(function(c){
+    S.cities[c.k].owner=winner;
+    S.cities[c.k].unrest=clamp(S.cities[c.k].unrest+18,0,100);
+  });
+  st(loser).alive=false;
+  gensOf(loser).forEach(function(g){
+    var s=S.gen[g.k];
+    if(Math.random()<0.6){ s.side=winner; s.loyal=40; s.city=findState(winner).cap; }
+    else s.dead=true;
+  });
+  STATES.forEach(function(o){
+    if(o.k===loser||o.k===winner||!st(o.k).alive) return;
+    if(atWar(o.k,loser)) setWar(o.k,loser,'peace',0);
+  });
+  st(winner).fame+=12;
+  logLine('log_annex',{l:loser,w:winner});
+  msg.push({k:'res_annex',p:{l:loser,w:winner}});
+}
+function captiveFate(gk,what){
+  var g=S.gen[gk]; if(!g||!g.pendingCapt) return;
+  g.pendingCapt=0;
+  S.captives=(S.captives||[]).filter(function(x){ return x!==gk; });
+  if(what==='hire'){
+    var s=st(S.me);
+    if(s.gold<25){ fail(t('err_nogold')); g.captive=S.me; return; }
+    s.gold-=25; g.side=S.me; g.captive=null; g.loyal=60; g.city=S.ui.sel&&S.cities[S.ui.sel]&&S.cities[S.ui.sel].owner===S.me?S.ui.sel:findState(S.me).cap;
+    logLine('log_gen_hired',{g:gk});
+  }else if(what==='free'){
+    g.captive=null; g.loyal=clamp(g.loyal+10,0,100); bumpRel(g.side,S.me,14);
+    g.city=findState(g.side).cap;
+    logLine('log_gen_freed',{g:gk});
+  }else{
+    g.dead=true; st(S.me).stab=clamp(st(S.me).stab-5,0,100);
+    STATES.forEach(function(o){ if(o.k!==S.me&&S.st[o.k].alive) bumpRel(o.k,S.me,-8); });
+    logLine('log_gen_killed',{g:gk});
+  }
+  renderCamp(); saveGame(true);
+}
+
+/* ---------- 季節の終了 ---------- */
+function endSeason(){
+  if(!S||S.over) return;
+  if(S.battle){ return; }
+  st(S.me).pol=0;
+  var order=aliveStates();
+  order.forEach(function(k){ applyIncome(k); });
+  order.forEach(function(k){ if(k!==S.me&&st(k).alive) aiTurn(k); });
+  var ev=rollEvents();
+  decayUnrest();
+  S.turn++; S.season=(S.season+1)%4; S.year=1+Math.floor((S.turn-1)/4);
+  aliveStates().forEach(function(k){ st(k).pol=polMax(k); });
+  sfx('season');
+  logLine('log_season',{y:S.year,s:SEASONS[S.season],me:st(S.me).pol});
+  var end=checkVictory();
+  renderCamp();
+  saveGame(true);
+  if(end){ S.pendingBattle=null; showGameOver(end); return; }
+  showEvents(ev||[]);
+}
+function decayUnrest(){
+  CITIES.forEach(function(c){
+    var d=S.cities[c.k]; if(d.unrest<=0) return;
+    d.unrest=Math.max(0,d.unrest-8);
+    if(d.unrest>40&&Math.random()<0.4){
+      var loss=Math.max(1,Math.round(d.garr*0.1)); d.garr=Math.max(0,d.garr-loss);
+      if(d.owner===S.me) logLine('log_unrest',{c:c.k,n:loss});
+    }
+  });
+}
+function checkVictory(){
+  if(!S||S.over) return S&&S.over;
+  var mine=citiesOf(S.me).length;
+  if(!st(S.me).alive||mine===0){ S.over={win:false,reason:'lost_all',turn:S.turn}; return S.over; }
+  var allAlive=aliveStates();
+  if(allAlive.length===1&&allAlive[0]===S.me){ S.over={win:true,reason:'unify',turn:S.turn}; return S.over; }
+  if(mine===CITIES.length){ S.over={win:true,reason:'unify',turn:S.turn}; return S.over; }
+  return null;
+}
+
+/* ---------- 季節イベント ---------- */
+function rollEvents(){
+  var out=[], me=st(S.me);
+  function evt(k,p){ out.push({k:k,p:p||null}); }
+  var r=Math.random();
+  if(r<0.11){ var f=8+ri(14); me.food+=f; evt('ev_good',{v:f}); logLine('log_ev_good',{v:f}); }
+  else if(r<0.20){
+    var lk=pick(citiesOf(S.me));
+    if(lk){ var loss=lk.farms>1?1:0; S.cities[lk.k].farms=Math.max(1,S.cities[lk.k].farms-loss);
+      me.food=Math.max(0,me.food-12); evt('ev_bad',{c:lk.k}); logLine('log_ev_bad',{c:lk.k}); }
+  }
+  else if(r<0.27){
+    if(me.stab<32){
+      var c2=pick(citiesOf(S.me));
+      if(c2){ S.cities[c2.k].unrest=clamp(S.cities[c2.k].unrest+30,0,100); S.cities[c2.k].garr=Math.max(0,S.cities[c2.k].garr-6);
+        evt('ev_rebel',{c:c2.k}); logLine('log_ev_rebel',{c:c2.k}); }
+    }
+  }
+  else if(r<0.34){
+    var wand=GENERALS.filter(function(g){ return S.gen[g.k]&&S.gen[g.k].hidden&&g.wander; });
+    if(wand.length){ var gk=pick(wand).k; evt('ev_guest',{g:gk}); logLine('log_ev_guest',{g:gk}); S.guest=gk; }
+  }
+  else if(r<0.40){ var gg=6+ri(10); me.gold+=gg; evt('ev_market',{v:gg}); logLine('log_ev_market',{v:gg}); }
+  // AI 国にも同じように（記録のみ）
+  aliveStates().forEach(function(k){
+    if(k===S.me||!st(k).alive) return;
+    var q=Math.random();
+    if(q<0.10){ st(k).food+=10+ri(12); }
+    else if(q<0.17){ st(k).food=Math.max(0,st(k).food-10); st(k).stab=clamp(st(k).stab-4,0,100); }
+    else if(q<0.21&&st(k).stab<35){ var cc=pick(citiesOf(k)); if(cc){ S.cities[cc.k].unrest+=26; S.cities[cc.k].garr=Math.max(0,S.cities[cc.k].garr-5); } }
+  });
+  return out;
+}
+/* ---------- AI（他国の季節行動） ---------- */
+function aiTurn(k){
+  var D=DIFF[S.diff];
+  if(!st(k).alive) return;
+  aiDiplomacy(k,D);
+  aiMove(k,D);
+  aiMilitary(k,D);
+  aiDomestic(k,D);
+}
+function aiThreat(k,ck){
+  var v=0;
+  neighbors(ck).forEach(function(l){
+    var d=S.cities[l.to];
+    if(d.owner!==k&&atWar(k,d.owner)) v+=d.garr;
+  });
+  return v;
+}
+function aiDiplomacy(k,D){
+  var s=st(k);
+  STATES.forEach(function(o){
+    var j=o.k;
+    if(j===k||!st(j).alive) return;
+    if(atWar(k,j)){
+      var wear=(s.stab<45||s.food<10||s.gold<15||warScore(k)<-1);
+      if(wear&&Math.random()<0.55*D.aggro+0.25){
+        var pay=Math.min(s.gold,10+ri(12));
+        s.gold-=pay; st(j).gold+=pay;
+        setWar(k,j,'truce',S.turn+6); bumpRel(k,j,12);
+        logLine('log_ai_peace',{a:k,b:j,v:pay});
+      }else if(Math.random()<0.30*D.aggro&&powerOf(k)>powerOf(j)*1.3){
+        st(k).fame+=1; logLine('log_ai_pressure',{a:k,b:j});
+      }
+      return;
+    }
+    if(warOf(k,j)&&warOf(k,j).s==='truce'&&S.turn>=warOf(k,j).t) setWar(k,j,'peace',0);
+    if(warOf(k,j)&&warOf(k,j).s==='ally'&&S.turn>=warOf(k,j).t) setWar(k,j,'peace',0);
+    var r=relOf(k,j);
+    var adj=adjacentPair(k,j);
+    /* 長すぎた平穏は戦いに戻る（戦国の世） */
+    S.peaceCnt=S.peaceCnt||{};
+    var pkv=pk(k,j);
+    if(!atWar(k,j)&&!(warOf(k,j)&&warOf(k,j).s==='truce')){
+      S.peaceCnt[pkv]=(S.peaceCnt[pkv]||0)+1;
+      if(adj&&S.peaceCnt[pkv]>=4&&powerOf(k)>powerOf(j)*0.92&&Math.random()<0.34*D.aggro&&!allied(j,S.me)){
+        declareWar(k,j,false);
+        if(j===S.me&&S.st[S.me].alive){ showWarNotice(k); }
+        return;
+      }
+    }else S.peaceCnt[pkv]=0;
+    if(adj&&r<-28&&powerOf(k)>powerOf(j)*1.15&&Math.random()<0.35*D.aggro&&!allied(j,S.me)){
+      declareWar(k,j,false);
+      if(j===S.me&&S.st[S.me].alive){ showWarNotice(k); }
+      return;
+    }
+    if(adj&&r>58&&!allied(k,j)&&Math.random()<0.20){ setWar(k,j,'ally',S.turn+10); logLine('log_ai_ally',{a:k,b:j}); return; }
+    if(r<0&&s.pol>=1&&s.gold>=8&&Math.random()<0.35){ s.pol-=1; s.gold-=8; bumpRel(k,j,10); }
+  });
+}
+function adjacentPair(a,b){
+  for(var i=0;i<CITIES.length;i++){
+    if(S.cities[CITIES[i].k].owner!==a) continue;
+    var ls=neighbors(CITIES[i].k);
+    for(var j=0;j<ls.length;j++) if(S.cities[ls[j].to].owner===b) return true;
+  }
+  return false;
+}
+function aiMove(k,D){
+  var s=st(k);
+  citiesOf(k).forEach(function(c){
+    if(s.pol<=0) return;
+    var d=S.cities[c.k];
+    if(d.garr<6) return;
+    var th=aiThreat(k,c.k);
+    if(th>0&&d.garr<th*1.1) return;                 // 前線は据える
+    // 危険な隣人へ増援
+    var best=null;
+    neighbors(c.k).forEach(function(l){
+      var o=S.cities[l.to];
+      if(o.owner!==k) return;
+      if(aiThreat(k,l.to)>o.garr*0.7&&(!best||o.garr<S.cities[best].garr)) best=l.to;
+    });
+    if(best&&Math.random()<0.6){
+      s.pol-=1; var amt=Math.ceil(d.garr/2); d.garr-=amt; S.cities[best].garr+=amt;
+      logLine('log_ai_move',{a:k,f:c.k,t:best,n:amt});
+    }
+  });
+}
+function aiMilitary(k,D){
+  var s=st(k), guard=0;
+  while(s.pol>=2&&guard++<3){
+    var best=null;
+    citiesOf(k).forEach(function(c){
+      var d=S.cities[c.k];
+      if(d.garr<10) return;
+      neighbors(c.k).forEach(function(l){
+        var o=S.cities[l.to];
+        if(o.owner===k||!st(o.owner).alive) return;
+        if(warOf(k,o.owner)&&warOf(k,o.owner).s==='truce'&&S.turn<warOf(k,o.owner).t) return;
+        if(allied(o.owner,S.me)&&k!==S.me) return;         // -player の同盟国は手が出しにくい
+        var qa=cityQuality(c.k), qb=cityQuality(l.to);
+        var ratio=(d.garr*qa)/((o.garr+o.walls*3)*qb);
+        var need=1.40-0.40*(D.aggro-0.5);
+        if(citiesOf(o.owner).length<=2) need=1.0;                 // 弱体な相手には遠慮がない
+        if(atWar(k,o.owner)) need-=0.22;                          // 開戦中は攻め続ける
+        if(ratio<Math.max(1.02,need)) return;
+        var sc=ratio*10+o.pop*0.4+o.trade*6-(findState(o.owner).cap===l.to?4:0);
+        if(!best||sc>best.sc) best={sc:sc,from:c.k,to:l.to,ratio:ratio};
+      });
+    });
+    if(!best) break;
+    var target=S.cities[best.to].owner;
+    if(!atWar(k,target)) declareWar(k,target,false);
+    var gk=aiBestGeneral(k,best.from);
+    var commit=Math.max(8,S.cities[best.from].garr-2);
+    S.cities[best.from].garr-=commit;
+    /* あなたが守り手になる戦いは、自動解決せず戦術レイヤーへ預ける */
+    if(target===S.me&&!S.pendingBattle&&!S.battle){
+      S.pendingBattle={from:best.from,to:best.to,commit:commit,gen:gk,att:k};
+      showInvasionNotice(k,best.to);
+      break;
+    }
+    var B=makeBattle(best.from,best.to,commit,gk,true);
+    var res=simBattle(B);
+    var applied=applyBattleResult(B);
+    logLine('log_ai_battle',{a:k,d:target,c:best.to,w:applied.attWin?'a':'d',l:applied.attLoss+applied.defLoss});
+    if(target===S.me){
+      aiBattleNotice(k,best.from,best.to,applied);
+      break;
+    }
+    if(checkVictory()) break;
+  }
+}
+function aiBestGeneral(k,from){
+  var best=null,bv=-1;
+  gensOf(k).forEach(function(g){
+    var s=S.gen[g.k]; if(!s||s.dead) return;
+    var v=g.lead*2+g.war+g.int;
+    if(s.city===from) v+=30;
+    else if(s.city&&S.cities[s.city]&&S.cities[s.city].owner===k&&linkInfo(s.city,from)) v+=8;
+    if(v>bv){ bv=v; best=g.k; }
+  });
+  if(best&&S.gen[best].city!==from) S.gen[best].city=from;
+  return best;
+}
+function aiDomestic(k,D){
+  var s=st(k), guard=0;
+  while(s.pol>0&&guard++<8){
+    s.pol-=1;
+    var opts=[];
+    var own=citiesOf(k);
+    if(!own.length) break;
+    if(s.food<14) opts.push('farms','farms','recruit');
+    if(s.gold<20) opts.push('town');
+    if(s.stab<45) opts.push('appease','appease');
+    var needMil=0;
+    own.forEach(function(c){ if(aiThreat(k,c.k)>S.cities[c.k].garr*0.8) needMil++; });
+    if(needMil&&s.men>=12&&s.food>=6) opts.push('recruit','recruit','walls');
+    opts.push('farms','town','walls','train');
+    var w=pick(opts), c3;
+    if(w==='appease'){ s.stab=clamp(s.stab+7,0,100); s.gold=Math.max(0,s.gold-DEV.appease.gold); continue; }
+    if(w==='recruit'){
+      if(s.men<12||s.food<6||s.gold<DEV.recruit.gold){ continue; }
+      c3=pick(own); s.men-=12; s.food-=6; s.gold-=DEV.recruit.gold;
+      S.cities[c3.k].garr+=8; continue;
+    }
+    var cands=own.filter(function(c){ return S.cities[c.k][w]<5; });
+    if(!cands.length) continue;
+    c3=pick(cands);
+    if(s.gold<DEV[w].gold) { s.gold+=0; continue; }
+    s.gold-=DEV[w].gold; S.cities[c3.k][w]+=1;
+  }
+  // 客将の登用
+  if(S.guest&&st(k).gold>=30&&Math.random()<0.3*D.aggro){
+    var g=S.gen[S.guest];
+    if(g&&g.hidden){ g.hidden=false; g.wander=false; g.side=k; g.city=findState(k).cap; g.loyal=70; st(k).gold-=30;
+      logLine('log_ai_hire',{s:k,g:S.guest}); S.guest=null; }
+  }
+}
+function showWarNotice(k){ S.notices=(S.notices||[]); S.notices.push({k:'ev_war',p:{s:k}}); }
+function showInvasionNotice(k,toCity){
+  S.notices=(S.notices||[]);
+  S.notices.push({k:'ev_invasion',p:{s:k,c:toCity}});
+  logLine('log_war',{a:k,b:S.me});
+}
+/* 攻め込まれた戦いは、あなたが守り手として戦術レイヤーで指揮する */
+function startPendingBattle(){
+  var pb=S.pendingBattle; if(!pb) return false;
+  S.pendingBattle=null;
+  S.notices=[];
+  closeOverlay('evOv');
+  startBattle(pb.from,pb.to,pb.commit,null);
+  return true;
+}
+function aiBattleNotice(att,from,to,applied){
+  S.notices=(S.notices||[]);
+  S.notices.push({k:applied.attWin?'ev_lost_city':'ev_defended',p:{c:to,a:att,l:applied.attLoss+applied.defLoss}});
+}
+/* =====================================================================
+   6. 戦術（戦闘）レイヤー  ― Two Crowns のルール体系を踏襲
+      ・ターン制：移動→攻撃（1兵1回）／村落で部隊を回復
+      ・兵科の三すくみ、地形の移動コストと防御、隣接攻撃の反撃
+      ・本営を壊す／士気が尽きる／兵がいなくなると決着
+      ・長期化すると攻城と消耗が加速する（膠着防止）
+   ===================================================================== */
+var BT=null;
+var BMAX_TURN=26, RAMP_FROM=14, RAMP_STEP=0.10, RAMP_MAX=3.2;
+
+/* 陣営は p=攻め手（盤面下） / e=守り手（盤面上）。人間が守り手のときは盤面を180度回転して見せる。 */
+function makeBattle(fromKey,toKey,commit,attGen,auto,attComp){
+  var from=S.cities[fromKey], to=S.cities[toKey];
+  var att=from.owner, def=to.owner;
+  var meAtk=(att===S.me);
+  var siege=(to.walls>=3);
+  var defGen=(def===S.me)?pickGenForCity(def,toKey):aiBestGeneral(def,toKey);
+  var atkGen=(att===S.me)?attGen:aiBestGeneral(att,fromKey);
+  var defCom=Math.max(6,to.garr);
+  var B={
+    seed:((S.seed^(hashStr(fromKey)*7919+hashStr(toKey)*104729+S.turn*31+ri(997)))>>>0),
+    city:toKey, from:fromKey, att:att, def:def, attIsMe:meAtk, meSide:meAtk?'p':'e',
+    auto:!!auto, siege:siege, walls:to.walls, link:(linkInfo(fromKey,toKey)||{t:'plain'}).t,
+    cols:siege?15:13, rows:siege?11:9, tiles:[], units:[], uid:1,
+    basePos:{p:null,e:null}, baseHp:{p:16,e:16+to.walls*4},
+    morale:{p:0,e:0}, cap:{p:0,e:0}, commit:{p:commit,e:defCom}, losses:{p:0,e:0},
+    tac:{p:1,e:1}, gen:{p:atkGen,e:defGen}, qmul:{p:1,e:1},
+    turn:1, maxTurn:BMAX_TURN, sel:null, skill:null, log:[], over:null, undo:[]
+  };
+  B.qmul.p=qualityOf(att,fromKey,atkGen);
+  B.qmul.e=qualityOf(def,toKey,defGen);
+  B.cap.p=battleUnitCount(commit);
+  B.cap.e=battleUnitCount(defCom);
+  B.morale.p=initMorale(att,commit,atkGen);
+  B.morale.e=initMorale(def,defCom,defGen);
+  genBattleMap(B);
+  deployInitial(B,'p',meAtk?attComp:null); deployInitial(B,'e',!meAtk?attComp:null);
+  blog(B,'b_start',{c:toKey});
+  return B;
+}
+function pickGenForCity(stateKey,cityKey){
+  var inCity=gensAt(cityKey).filter(function(g){ return S.gen[g.k].side===stateKey; });
+  return inCity.length?inCity[0].k:null;
+}
+function hashStr(s){ var h=0; for(var i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))|0; } return h>>>0; }
+function qualityOf(stateKey,cityKey,genKey){
+  var d=S.cities[cityKey], q=1+0.04*d.train+0.002*S.st[stateKey].stab;
+  if(genKey){ var g=genData(genKey); if(g) q+=0.01*(g.lead+g.war); }
+  return q;
+}
+function initMorale(stateKey,commit,genKey){
+  var m=62+Math.min(22,commit*0.6)+(genKey?(genData(genKey)||{lead:5}).lead*2:0)+S.st[stateKey].stab*0.15;
+  return Math.round(clamp(m,45,100));
+}
+
+/* ---------- 盤面生成（攻め手＝下／守り手＝上・守り手は城壁で囲まれる） ---------- */
+function genBattleMap(B){
+  var W=B.cols, H=B.rows, R=seedRnd(B.seed), y, x, row;
+  for(y=0;y<H;y++){ row=[]; for(x=0;x<W;x++) row.push({t:'plain',owner:null}); B.tiles.push(row); }
+  function setT(px,py,t){ if(px>=0&&py>=0&&px<W&&py<H) B.tiles[py][px].t=t; }
+  function keep(px,py){ return (py>=H-3)||(py<=1); }         // 本営まわりは整地する
+  function spread(kind,count){
+    var guard=0;
+    while(count>0&&guard++<900){
+      var px=ri(W), py=ri(H);
+      if(B.tiles[py][px].t!=='plain'||keep(px,py)) continue;
+      setT(px,py,kind); count--;
+    }
+  }
+  var lk=B.link||'plain', area=W*H, midx=W>>1;
+  if(lk==='mountain'){ spread('mountain',Math.round(area*0.16)); spread('forest',Math.round(area*0.10)); }
+  else if(lk==='hill'){ spread('forest',Math.round(area*0.15)); spread('mountain',Math.round(area*0.06)); }
+  else if(lk==='plain'){ spread('forest',Math.round(area*0.08)); }
+  else { spread('forest',Math.round(area*0.07)); }
+  // 川沿いの戦場：河が盤面を分け、橋は必ず残す
+  if(lk==='river'){
+    var ry=3+ri(Math.max(1,H-6)), bridge=1+ri(Math.max(1,W-3));
+    for(var bx=0;bx<W;bx++){
+      if(bx===bridge||bx===bridge+1) continue;
+      if(B.tiles[ry][bx].t==='plain') setT(bx,ry,'water');
+    }
+  }
+  spread('village',2);
+  B.tiles[H-2][midx].t='base'; B.tiles[H-2][midx].owner='p'; B.basePos.p={x:midx,y:H-2};
+  B.tiles[1][midx].t='base';   B.tiles[1][midx].owner='e';   B.basePos.e={x:midx,y:1};
+  if(B.siege){
+    var x0=Math.max(0,midx-4), x1=Math.min(W-1,midx+4), y0=0, y1=4;
+    for(var yy=y0;yy<=y1;yy++) for(var xx=x0;xx<=x1;xx++){
+      if(!(yy===y1||xx===x0||xx===x1)) continue;             // 城壁は前側（攻め手側）に弧を描く
+      if(B.tiles[yy][xx].t==='base'||!isFinite(TERRAIN[B.tiles[yy][xx].t].cost)) continue;
+      setT(xx,yy,'wall');
+    }
+    var gy=y1, g1=clamp(midx-3,x0+1,x1-1), g2=clamp(midx+3,x0+1,x1-1);
+    if(B.tiles[gy][g1].t==='wall') setT(g1,gy,'gate');
+    if(B.tiles[gy][g2].t==='wall') setT(g2,gy,'gate');
+    for(var iy=0;iy<y1;iy++) for(var ix=x0;ix<=x1;ix++){
+      var tt=B.tiles[iy][ix];
+      if(tt.t==='plain'||tt.t==='village') tt.walled=true;   // 城内は防御+2
+    }
+    setT(midx-1,H-2,'gate'); setT(midx+1,H-2,'gate');        // 攻め手本営の前哨門
+  }
+  ensurePaths(B);
+}
+function ensurePaths(B){
+  var W=B.cols,H=B.rows;
+  var a=B.basePos.p,b=B.basePos.e;
+  if(!walkableBetween(a,b,'inf',B)) {
+    // 塞がっていれば中央の列を平野に開通させる
+    var midx=W>>1;
+    for(var y=0;y<H;y++){ if(B.tiles[y][midx].t==='water'||B.tiles[y][midx].t==='wall') B.tiles[y][midx].t='gate'; else if(B.tiles[y][midx].t==='mountain') B.tiles[y][midx].t='forest'; }
+  }
+  if(!walkableBetween(a,b,'inf',B)){
+    for(var y2=0;y2<H;y2++) for(var x2=0;x2<W;x2++){ if(B.tiles[y2][x2].t==='water'||B.tiles[y2][x2].t==='wall') { B.tiles[y2][x2].t='plain'; } }
+  }
+}
+function walkableBetween(a,b,type,B){
+  var seen={}, q=[a.x+','+a.y]; seen[a.x+','+a.y]=1;
+  while(q.length){
+    var k=q.shift(); if(k===b.x+','+b.y) return true;
+    var p=k.split(','), x=+p[0], y=+p[1];
+    [[1,0],[-1,0],[0,1],[0,-1]].forEach(function(d){
+      var nx=x+d[0], ny=y+d[1];
+      if(nx<0||ny<0||nx>=B.cols||ny>=B.rows) return;
+      var t=B.tiles[ny][nx].t, nk=nx+','+ny;
+      if(seen[nk]) return;
+      if(!isFinite(TERRAIN[t].cost)) return;
+      if(t==='mountain'&&TYPES[type].noMountain) return;
+      seen[nk]=1; q.push(nk);
+    });
+  }
+  return false;
+}
+
+/* ---------- 兵力配置 ---------- */
+function battleUnitCount(commit){ return clamp(3+Math.floor(commit/12),3,10); }
+function armyCompTotal(comp){
+  if(!comp) return 0;
+  return TKEYS.reduce(function(sum,k){ return sum+Math.max(0,Math.floor(+comp[k]||0)); },0);
+}
+function defaultArmyComp(from,to,count){
+  var types=autoMix({from:from,to:to},'p'), comp={inf:0,arc:0,cav:0,spc:0};
+  for(var i=0;i<count;i++) comp[types[i%types.length]]++;
+  return comp;
+}
+function resizeArmyComp(comp,from,to,count){
+  var out={inf:0,arc:0,cav:0,spc:0};
+  TKEYS.forEach(function(k){ out[k]=Math.max(0,Math.floor(+((comp||{})[k])||0)); });
+  var total=armyCompTotal(out), types=autoMix({from:from,to:to},'p');
+  while(total>count){
+    for(var i=TKEYS.length-1;i>=0&&total>count;i--){
+      if(out[TKEYS[i]]>0){ out[TKEYS[i]]--; total--; }
+    }
+  }
+  while(total<count){ out[types[total%types.length]]++; total++; }
+  return out;
+}
+function deployInitial(B,side,composition){
+  var count=B.cap[side], comp=resizeArmyComp(composition||defaultArmyComp(B.from,B.to,count),B.from,B.to,count);
+  for(var i=0;i<TKEYS.length;i++){
+    var type=TKEYS[i];
+    for(var n=0;n<comp[type];n++){
+      var spots=deploymentSpots(B,side);
+      if(!spots.length) return;
+      var mine=bUnits(B,side), bestSpot=spots[0], bestScore=-1;
+      for(var j=0;j<spots.length;j++){
+        var spot=spots[j], dmin=99;
+        for(var m=0;m<mine.length;m++) dmin=Math.min(dmin,Math.abs(mine[m].x-spot.x)+Math.abs(mine[m].y-spot.y));
+        var score=dmin*1.6+ri(3)+(B.tiles[spot.y][spot.x].t==='village'?1.5:0);
+        if(score>bestScore){ bestScore=score; bestSpot=spot; }
+      }
+      addUnit(B,side,type,bestSpot.x,bestSpot.y);
+    }
+  }
+}
+function autoMix(B,side){
+  var lk=(linkInfo(B.from,B.to)||{t:'plain'}).t;
+  if(lk==='mountain'||lk==='hill') return ['spc','inf','arc'];
+  if(lk==='river') return ['inf','arc','arc'];
+  return ['inf','cav','arc'];
+}
+function addUnit(B,side,type,x,y){
+  var T=TYPES[type], q=B.qmul[side];
+  var u={id:B.uid++,side:side,type:type,x:x,y:y,
+    hp:Math.round(T.hp*q),max:Math.round(T.hp*q),
+    atkMul:q,acted:true,moved:false,buff:0};
+  B.units.push(u);
+  return u;
+}
+
+/* ---------- 基本クエリ ---------- */
+function bUnitAt(B,x,y){ for(var i=0;i<B.units.length;i++){ var u=B.units[i]; if(u.x===x&&u.y===y) return u; } return null; }
+function bTile(B,x,y){ return B.tiles[y][x]; }
+function bUnits(B,side){ return B.units.filter(function(u){ return u.side===side; }); }
+function enemyOf(side){ return side==='p'?'e':'p'; }
+function bStateOf(B,side){ return side==='p'?B.pState:B.eState; }
+function blog(B,k,p){ if(!B) return; B.log.unshift({k:k,p:p||null}); if(B.log.length>18) B.log.length=18; }
+function bfx(x,y,text){ if(typeof document==='undefined') return; var el=document.querySelector('.cell[data-x="'+x+'"][data-y="'+y+'"]'); if(!el) return; var d=document.createElement('div'); d.className='fx'; d.textContent=text; el.appendChild(d); setTimeout(function(){ try{ if(d.parentNode) d.parentNode.removeChild(d); }catch(e){} },700); }
+
+function bPassable(B,u,x,y){
+  if(x<0||y<0||x>=B.cols||y>=B.rows) return false;
+  var t=bTile(B,x,y);
+  if(!isFinite(TERRAIN[t.t].cost)) return false;
+  if(t.t==='mountain'&&TYPES[u.type].noMountain) return false;
+  if(t.t==='base'&&t.owner!==u.side) return false;
+  if(bUnitAt(B,x,y)) return false;
+  return true;
+}
+function bReach(B,u){
+  var T=TYPES[u.type], best={}, lim=T.move+(u.buff>0?2:0);
+  best[u.x+','+u.y]=0;
+  var open=[{d:0,x:u.x,y:u.y}];
+  var guard=0;
+  while(open.length&&guard++<4000){
+    open.sort(function(a,b){ return a.d-b.d; });
+    var cur=open.shift(), key=cur.x+','+cur.y;
+    if(best[key]<cur.d) continue;
+    var dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+    for(var i=0;i<4;i++){
+      var nx=cur.x+dirs[i][0], ny=cur.y+dirs[i][1];
+      if(!bPassable(B,u,nx,ny)) continue;
+      var nd=cur.d+TERRAIN[bTile(B,nx,ny).t].cost;
+      if(nd>lim) continue;
+      var nk=nx+','+ny;
+      if(best[nk]===undefined||nd<best[nk]){ best[nk]=nd; open.push({d:nd,x:nx,y:ny}); }
+    }
+  }
+  return best;
+}
+function bTargets(B,u,x,y){
+  var T=TYPES[u.type], out=[],i;
+  for(i=0;i<B.units.length;i++){
+    var o=B.units[i];
+    if(o.side===u.side) continue;
+    if(Math.abs(o.x-x)+Math.abs(o.y-y)<=T.range) out.push({kind:'unit',u:o});
+  }
+  var foe=enemyOf(u.side), b=B.basePos[foe];
+  if(b&&B.baseHp[foe]>0&&Math.abs(b.x-x)+Math.abs(b.y-y)<=T.range) out.push({kind:'base',side:foe,x:b.x,y:b.y});
+  return out;
+}
+function defOf(B,x,y){
+  var t=bTile(B,x,y).t, d=TERRAIN[t].def;
+  if(bTile(B,x,y).walled) d+=2;
+  return d;
+}
+function bSiegeMul(B){ return 1+Math.floor(Math.max(0,B.turn-1)/8); }
+function bRampMul(B){ if(B.turn<RAMP_FROM) return 1; return Math.min(RAMP_MAX,1+RAMP_STEP*(B.turn-RAMP_FROM)); }
+function dmgOf(B,att,target,counter){
+  var A=TYPES[att.type], ratio=att.hp/A.hp, mult=1, def=0;
+  if(target.kind==='unit'){ mult=CNT[att.type][target.u.type]||1; def=defOf(B,target.u.x,target.u.y)*0.7; }
+  else { mult=B.siege?1.3:1.15; def=TERRAIN.base.def*0.7; }
+  var d=A.atk*att.atkMul*mult*(0.45+0.55*ratio)-def;
+  if(!counter&&att.moved&&target.kind==='unit') d*=1.2;   // 踏み込み（電）のボーナス
+  if(target.kind==='base') d*=bSiegeMul(B);
+  else d*=bRampMul(B);
+  if(att.buff>0) d*=1.5;
+  if(counter) d*=1.0;
+  return Math.max(1,d);
+}
+function rollDmg(B,att,target,counter){ return Math.max(1,Math.round(dmgOf(B,att,target,counter)*rnd(0.9,1.12))); }
+
+/* ---------- 徴兵拠点 ---------- */
+function deploymentSpots(B,side){
+  var out=[],seen={},b=B.basePos[side];
+  function ok(x,y){
+    if(x<0||y<0||x>=B.cols||y>=B.rows) return false;
+    var t=bTile(B,x,y);
+    if(!isFinite(TERRAIN[t.t].cost)) return false;
+    if(t.t==='base'&&t.owner!==side) return false;
+    if(t.t==='mountain') return false;
+    if(bUnitAt(B,x,y)) return false;
+    return true;
+  }
+  function add(x,y){ if(!ok(x,y)) return; var k=x+','+y; if(seen[k]) return; seen[k]=1; out.push({x:x,y:y}); }
+  if(b){
+    for(var dy=-2;dy<=2;dy++) for(var dx=-2;dx<=2;dx++){
+      if(Math.abs(dx)+Math.abs(dy)<=2) add(b.x+dx,b.y+dy);
+    }
+  }
+  for(var y=0;y<B.rows;y++) for(var x=0;x<B.cols;x++){ var t=B.tiles[y][x]; if(t.t==='village'&&t.owner===side) add(x,y); }
+  return out;
+}
+
+/* ---------- 移動・攻撃 ---------- */
+function bMove(B,u,x,y){
+  if(u.x!==x||u.y!==y){ u.x=x; u.y=y; }
+  u.moved=true;
+  var t=bTile(B,x,y);
+  if(t.t==='village'&&t.owner!==u.side){ t.owner=u.side; blog(B,'b_village',{s:u.side}); }
+}
+function bKill(B,u){
+  var i=B.units.indexOf(u); if(i>=0) B.units.splice(i,1);
+  if(B.sel===u.id) B.sel=null;
+  B.losses[u.side]+=4;
+  B.morale[u.side]=Math.max(0,B.morale[u.side]-8);
+  B.tac[enemyOf(u.side)]=Math.min(3,B.tac[enemyOf(u.side)]+1);
+  blog(B,'b_kill',{s:u.side,u:u.type});
+}
+function bAttack(B,u,target){
+  u.acted=true;
+  if(u.side===B.meSide) sfx('atk');
+  if(target.kind==='unit'){
+    var d=target.u, dmg=rollDmg(B,u,target,false);
+    d.hp-=dmg; bfx(d.x,d.y,'-'+dmg);
+    blog(B,'b_hit',{a:u.side,au:u.type,d:d.side,du:d.type,v:dmg});
+    if(d.hp<=0){ if(u.side===B.meSide) sfx('kill'); bKill(B,d); }
+    else{
+      var dist=Math.abs(u.x-d.x)+Math.abs(u.y-d.y);
+      if(TYPES[d.type].range===1&&dist<=1&&u.hp>0&&u.buff<2){
+        var c=Math.round(rollDmg(B,d,{kind:'unit',u:u},true)*0.6);
+        u.hp-=c; bfx(u.x,u.y,'-'+c);
+        blog(B,'b_counter',{v:c});
+        if(u.hp<=0) bKill(B,u);
+      }
+    }
+  }else{
+    var dmg2=rollDmg(B,u,target,false);
+    B.baseHp[target.side]-=dmg2; bfx(target.x,target.y,'-'+dmg2);
+    B.morale[target.side]=Math.max(0,B.morale[target.side]-Math.round(dmg2/2.8));
+    blog(B,'b_basehit',{s:u.side,u:u.type,foe:target.side,v:dmg2,left:Math.max(0,B.baseHp[target.side])});
+    if(u.side===B.meSide) sfx('base');
+  }
+  bCheckEnd(B);
+}
+/* ---------- 手番・士気・軍略 ---------- */
+function noForces(B,s){ return bUnits(B,s).length===0; }
+function bCheckEnd(B){
+  if(B.over) return B.over;
+  if(B.baseHp.e<=0) B.over={winner:'att',reason:'camp'};
+  else if(B.baseHp.p<=0) B.over={winner:'def',reason:'camp'};
+  else if(B.morale.e<=0) B.over={winner:'att',reason:'rout'};
+  else if(B.morale.p<=0) B.over={winner:'def',reason:'rout'};
+  else if(noForces(B,'e')) B.over={winner:'att',reason:'elim'};
+  else if(noForces(B,'p')) B.over={winner:'def',reason:'elim'};
+  else if(B.turn>B.maxTurn) B.over={winner:'def',reason:'stale'};
+  if(B.over) blog(B,'b_end',{w:B.over.winner,r:B.over.reason});
+  return B.over;
+}
+function bRoundEnd(B){
+  B.turn++;
+  ['p','e'].forEach(function(s){
+    B.tac[s]=Math.min(3,B.tac[s]+1);
+    if(B.baseHp[s]>0) B.morale[s]=Math.min(100,B.morale[s]+2);
+  });
+  if(B.turn>=10) B.morale.p=Math.max(0,B.morale.p-2);      // 城外の攻め手は補給が細る
+  B.units.forEach(function(u){
+    var t=bTile(B,u.x,u.y);
+    if((t.t==='base'||t.t==='village')&&t.owner===u.side) u.hp=Math.min(u.max,u.hp+3);
+    u.acted=false; u.moved=false; u.buff=0;
+  });
+  B.undo=[];
+  bCheckEnd(B);
+}
+/* ---------- 戦法（将軍の特殊能力：軍略ゲージを消費） ---------- */
+function skillOf(B,side){
+  var gk=B.gen[side]; if(!gk) return null;
+  var g=genData(gk); if(!g||!SKILLS[g.skill]) return null;
+  return {key:g.skill,def:SKILLS[g.skill],gen:g};
+}
+function skillReady(B,side){
+  var s=skillOf(B,side);
+  return !!(s&&!B.over&&B.tac[side]>=s.def.cost);
+}
+function useSkill(B,side,tx,ty){
+  var sk=skillOf(B,side);
+  if(!sk||B.tac[side]<sk.def.cost||B.over) return false;
+  var g=sk.gen, foe=enemyOf(side), applied=false;
+  if(sk.key==='fire'){
+    var hit=0;
+    for(var y=Math.max(0,ty-1);y<=Math.min(B.rows-1,ty+1);y++)
+      for(var x=Math.max(0,tx-1);x<=Math.min(B.cols-1,tx+1);x++){
+        if(B.tiles[y][x].t==='forest'){ B.tiles[y][x].t='plain'; B.tiles[y][x].owner=null; }
+        var u=bUnitAt(B,x,y);
+        if(u&&u.side===foe){ var d=Math.round((5+g.int)*B.qmul[side]*rnd(0.9,1.15)); u.hp-=d; bfx(x,y,'-'+d); hit++; if(u.hp<=0) bKill(B,u); }
+      }
+    if(hit){ B.morale[foe]=Math.max(0,B.morale[foe]-4); sfx('fire'); blog(B,'b_skill',{s:side,k:'fire',n:hit}); applied=true; }
+  }else if(sk.key==='charge'){
+    var target=bUnitAt(B,tx,ty);
+    if(target&&target.side===side){
+      target.buff=1; target.acted=false; target.moved=false;
+      sfx('skill'); blog(B,'b_skill',{s:side,k:'charge',n:1}); applied=true;
+    }
+  }else if(sk.key==='rally'){
+    var b=B.basePos[side], healed=0, heal=5+Math.round(g.int/2);
+    B.units.forEach(function(u){
+      if(u.side!==side||!b) return;
+      if(Math.abs(u.x-b.x)+Math.abs(u.y-b.y)>2) return;
+      u.hp=Math.min(u.max,u.hp+heal); healed++; bfx(u.x,u.y,'+'+heal);
+    });
+    B.morale[side]=Math.min(100,B.morale[side]+10);
+    sfx('skill'); blog(B,'b_skill',{s:side,k:'rally',n:healed}); applied=true;
+  }else if(sk.key==='surprise'){
+    var bb=B.basePos[side], hit=0;
+    B.units.slice().forEach(function(u){
+      if(u.side===foe&&bb&&Math.abs(u.x-bb.x)+Math.abs(u.y-bb.y)<=3){
+        u.hp-=4; hit++; bfx(u.x,u.y,'-4'); if(u.hp<=0) bKill(B,u);
+      }
+    });
+    B.morale[foe]=Math.max(0,B.morale[foe]-6);
+    sfx('skill'); blog(B,'b_skill',{s:side,k:'surprise',n:hit}); applied=true;
+  }
+  if(!applied) return false;
+  B.tac[side]-=sk.def.cost;
+  bCheckEnd(B);
+  return true;
+}
+
+/* ---------- 戦闘 AI（両軍ともこの手順で動く） ---------- */
+function costMap(B,type,targets){
+  var dist={}, q=[];
+  (targets||[]).forEach(function(t){ if(!t) return; dist[t.x+','+t.y]=0; q.push({d:0,x:t.x,y:t.y}); });
+  var guard=0;
+  while(q.length&&guard++<5000){
+    q.sort(function(a,b){ return a.d-b.d; });
+    var c=q.shift(), k=c.x+','+c.y;
+    if(dist[k]<c.d) continue;
+    [[1,0],[-1,0],[0,1],[0,-1]].forEach(function(d){
+      var nx=c.x+d[0], ny=c.y+d[1];
+      if(nx<0||ny<0||nx>=B.cols||ny>=B.rows) return;
+      var t=B.tiles[ny][nx].t;
+      if(!isFinite(TERRAIN[t].cost)) return;
+      if(t==='mountain'&&TYPES[type].noMountain) return;
+      var nd=c.d+TERRAIN[t].cost, nk=nx+','+ny;
+      if(dist[nk]===undefined||nd<dist[nk]){ dist[nk]=nd; q.push({d:nd,x:nx,y:ny}); }
+    });
+  }
+  return dist;
+}
+function threatAt(B,x,y,side){
+  var sum=0, foes=bUnits(B,enemyOf(side));
+  foes.forEach(function(o){
+    var T=TYPES[o.type], dist=Math.abs(o.x-x)+Math.abs(o.y-y);
+    if(dist<=T.move+T.range) sum+=T.atk*B.qmul[o.side]*(o.hp/o.max)*0.6;
+  });
+  return sum;
+}
+function aiSide(B,side){
+  if(B.over) return;
+  aiUseSkill(B,side);
+  var list=bUnits(B,side).slice().sort(function(a,b){ return TYPES[b.type].atk-TYPES[a.type].atk; });
+  list.forEach(function(u){
+    if(B.over) return;
+    if(u.side!==side||u.acted) return;
+    if(B.units.indexOf(u)<0) return;
+    aiActUnit(B,u);
+  });
+}
+function aiUseSkill(B,side){
+  if(!skillReady(B,side)) return;
+  var sk=skillOf(B,side);
+  if(sk.key==='fire'){
+    var best=null;
+    for(var y=0;y<B.rows;y++) for(var x=0;x<B.cols;x++){
+      var n=0;
+      for(var dy=-1;dy<=1;dy++) for(var dx=-1;dx<=1;dx++){
+        var u=bUnitAt(B,x+dx,y+dy); if(u&&u.side!==side) n++;
+      }
+      if(n>=2&&(!best||n>best.n)) best={n:n,x:x,y:y};
+    }
+    if(best){ useSkill(B,side,best.x,best.y); return; }
+  }else if(sk.key==='charge'){
+    var mine=bUnits(B,side), foe=bUnits(B,enemyOf(side)), pickU=null, bd=99;
+    mine.forEach(function(u){
+      if(u.acted) return;
+      foe.forEach(function(o){ var d=Math.abs(u.x-o.x)+Math.abs(u.y-o.y); if(d<bd){ bd=d; pickU=u; } });
+    });
+    if(pickU&&bd<=4){ useSkill(B,side,pickU.x,pickU.y); return; }
+  }else if(sk.key==='rally'){
+    var tot=0, hp=0;
+    bUnits(B,side).forEach(function(u){ tot++; hp+=u.hp/u.max; });
+    if(tot&&B.morale[side]<58&&hp/tot<0.68){ useSkill(B,side,0,0); return; }
+  }else if(sk.key==='surprise'){
+    if(B.tac[side]>=3){ useSkill(B,side,0,0); return; }
+  }
+}
+function aiActUnit(B,u){
+  var reach=bReach(B,u), roleAtk=(u.side==='p');
+  var objTiles=roleAtk?[B.basePos.e]:bUnits(B,'p');
+  var cmap=costMap(B,u.type,objTiles);
+  var ownBase=B.basePos[u.side];
+  var d0=(cmap[u.x+','+u.y]===undefined?40:cmap[u.x+','+u.y]);
+  var best=null;
+  for(var key in reach){
+    var p=key.split(','), x=+p[0], y=+p[1];
+    var d=(cmap[key]===undefined?40:cmap[key]);
+    var sc=(d0-d)*(roleAtk?3.6:2.6);
+    sc+=defOf(B,x,y)*1.6;
+    sc-=threatAt(B,x,y,u.side)*0.7;
+    if(B.tiles[y][x].t==='village'&&B.tiles[y][x].owner!==u.side) sc+=4.5;
+    if(B.tiles[y][x].t==='gate'&&roleAtk) sc+=1.8;
+    if(ownBase){ var db=Math.abs(x-ownBase.x)+Math.abs(y-ownBase.y); if(db>5) sc-=(db-5)*1.6; }
+    var hit=bestAttackFrom(B,u,x,y);
+    if(hit) sc+=hit.value;
+    if(!best||sc>best.sc) best={sc:sc,x:x,y:y,hit:hit};
+  }
+  if(!best) return;
+  if(best.x!==u.x||best.y!==u.y) bMove(B,u,best.x,best.y);
+  var hit2=bestAttackFrom(B,u,u.x,u.y);
+  if(hit2&&(!best.hit||hit2.value>=best.hit.value*0.6)) bAttack(B,u,hit2.target);
+  else u.acted=true;
+}
+function bestAttackFrom(B,u,x,y){
+  var list=bTargets(B,u,x,y), best=null;
+  list.forEach(function(tg){
+    var dmg=rollDmg(B,u,tg,false), val=dmg;
+    if(tg.kind==='unit'){
+      var d=tg.u;
+      if(dmg>=d.hp) val+=11;
+      var dist=Math.abs(u.x-d.x)+Math.abs(u.y-d.y);
+      if(TYPES[d.type].range===1&&dist<=1&&u.buff<2) val-=rollDmg(B,d,{kind:'unit',u:u},true)*0.85;
+      val+=defOf(B,x,y)*0.4;
+    }else val+=8;                                   // 本営を叩く価値
+    if(!best||val>best.value) best={value:val,target:tg,dmg:dmg};
+  });
+  return best;
+}
+function simBattle(B){
+  var guard=0;
+  while(!B.over&&guard++<B.maxTurn+2){
+    aiSide(B,'p');
+    if(B.over) break;
+    aiSide(B,'e');
+    if(B.over) break;
+    bRoundEnd(B);
+  }
+  if(!B.over) B.over={winner:'def',reason:'stale'};
+  return B.over;
+}
+
+/* ---------- 戦闘開始／終了 ---------- */
+function startBattle(fromKey,toKey,commit,genKey,comp){
+  BT=makeBattle(fromKey,toKey,commit,genKey,false,comp);
+  S.battle={from:fromKey,to:toKey,commit:commit,gen:genKey||null};
+  S.battleData=BT;
+  S.ui.mode=null;
+  showScreen('scrBattle');
+  buildBoard();
+  renderBattle();
+  saveGame(true);
+}
+function pushUndoB(){
+  if(!BT) return;
+  BT.undo.push(JSON.stringify({units:BT.units,tiles:BT.tiles,baseHp:BT.baseHp,morale:BT.morale,tac:BT.tac,losses:BT.losses}));
+  if(BT.undo.length>10) BT.undo.shift();
+}
+function undoBattle(){
+  if(!BT||!BT.undo||!BT.undo.length) return;
+  try{
+    var o=JSON.parse(BT.undo.pop());
+    BT.units=o.units; BT.tiles=o.tiles; BT.baseHp=o.baseHp; BT.morale=o.morale; BT.tac=o.tac; BT.losses=o.losses;
+    BT.sel=null; BT.skill=null;
+    sfx('unsel'); blog(BT,'b_undo',null);
+    renderBattle();
+  }catch(e){}
+}
+function playerEndTurn(){
+  if(!BT||BT.over) return;
+  pushUndoB();
+  BT.sel=null; BT.skill=null;
+  sfx('turnE');
+  aiSide(BT,enemyOf(BT.meSide));
+  if(!BT.over){ bRoundEnd(BT); sfx('turn'); }
+  renderBattle();
+  if(BT.over) finishBattleUI();
+  else saveGame(true);
+}
+function retreatBattle(){
+  if(!BT||BT.over) return;
+  BT.over={winner:(BT.meSide==='p')?'def':'att',reason:'retreat'};
+  blog(BT,'b_retreat',null);
+  renderBattle();
+  finishBattleUI();
+}
+function battleWonByMe(B){
+  if(!B.over) return false;
+  var winSide=(B.over.winner==='att')?'p':'e';
+  return winSide===B.meSide;
+}
+function finishBattleUI(){
+  if(!BT||!BT.over||BT.resolved) return;
+  BT.resolved=true;
+  var applied=applyBattleResult(BT);
+  S.lastBattle={city:BT.city,win:battleWonByMe(BT),reason:BT.over.reason,attWin:applied.attWin,
+    myLoss:(BT.meSide==='p'?applied.attLoss:applied.defLoss),
+    foeLoss:(BT.meSide==='p'?applied.defLoss:applied.attLoss),
+    att:BT.att,def:BT.def,turn:BT.turn,meAtk:BT.attIsMe};
+  S.battle=null; S.battleData=null; BT=null;
+  if(S.lastBattle.win) sfx('win'); else sfx('lose');
+  renderCamp();
+  saveGame(true);
+  showBattleResult();
+}
+/* =====================================================================
+   7. 表示（戦略レイヤー）
+   ===================================================================== */
+var SCREEN='title';
+function showScreen(id){
+  SCREEN=id;
+  ['scrTitle','scrCamp','scrBattle'].forEach(function(s){
+    var el=document.getElementById(s); if(!el) return;
+    if(s===id) el.classList.add('on'); else el.classList.remove('on');
+  });
+  var bc=document.getElementById('barCamp'), bb=document.getElementById('barBat');
+  if(bc) bc.classList.toggle('hidden',id!=='scrCamp');
+  if(bb) bb.classList.toggle('hidden',id!=='scrBattle');
+  if(id==='scrCamp'){ renderMap(); fitMap(); }
+  if(id==='scrBattle'){ fit(); }
+}
+function openOverlay(id){ var e=document.getElementById(id); if(e) e.classList.remove('hidden'); }
+function closeOverlay(id){ var e=document.getElementById(id); if(e) e.classList.add('hidden'); }
+
+/* ---------- 大地のピクセル絵 ---------- */
+var T_PLAIN=0,T_GRASS=1,T_FOREST=2,T_HILL=3,T_MOUNT=4,T_RIVER=5,T_SEA=6,T_MARSH=7,T_DUNE=8,T_PADDY=9;
+var WORLD=null, WORLD_ART=null, MAP_SCALE=1, CITY_PX={};
+var RANGES=[
+  [3,13,5,12],[7,13,8,14],[17,6,17,11],[13,4,16,5],[27,2,31,3],
+  [17,13,18,14],[12,13,13,13],[13,14,15,14],[15,17,17,18],[20,15,22,16],
+  [32,12,33,12],[33,21,36,22],[5,10,6,10],[24,6,25,7]
+];
+var RIVERS=[
+  [[1,13],[5,12],[8,11],[12,9],[16,8],[20,7],[24,7],[28,8],[32,9],[36,9],[40,9]],
+  [[2,21],[7,21],[12,21],[16,20],[20,20],[25,19],[29,19],[34,19],[39,18]],
+  [[26,14],[29,15],[32,16],[35,17]]
+];
+var LAKE=[[14,20,17,21]];
+function buildWorld(){
+  var g=[],x,y,row;
+  for(y=0;y<MAP_H;y++){ row=[]; for(x=0;x<MAP_W;x++) row.push(T_PLAIN); g.push(row); }
+  function coast(x,y){
+    if(y<3) return x>=40;
+    if(y>=3&&y<=7) return x>=35;
+    return x>=41;
+  }
+  for(y=0;y<MAP_H;y++) for(x=0;x<MAP_W;x++) if(coast(x,y)) g[y][x]=T_SEA;
+  for(y=3;y<=8;y++) for(x=0;x<=4;x++) g[y][x]=T_DUNE;
+  function line(x0,y0,x1,y1,t,wide){
+    var n=Math.max(Math.abs(x1-x0),Math.abs(y1-y0)),i;
+    for(i=0;i<=n;i++){
+      var px=Math.round(x0+(x1-x0)*i/n), py=Math.round(y0+(y1-y0)*i/n);
+      if(px<0||py<0||px>=MAP_W||py>=MAP_H) continue;
+      if(g[py][px]===T_SEA) continue;
+      g[py][px]=t;
+      if(wide&&px+1<MAP_W&&g[py][px+1]!==T_SEA) g[py][px+1]=t;
+    }
+  }
+  RANGES.forEach(function(r){ line(r[0],r[1],r[2],r[3],T_MOUNT); });
+  [[9,6,11,6],[2,16,4,16],[38,12,39,13]].forEach(function(r){ line(r[0],r[1],r[2],r[3],T_HILL); });
+  RIVERS.forEach(function(pts){ for(var i=0;i<pts.length-1;i++) line(pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1],T_RIVER); });
+  LAKE.forEach(function(l){ for(var yy=l[1];yy<=l[3];yy++) for(var xx=l[0];xx<=l[2];xx++) if(g[yy]&&g[yy][xx]!==undefined&&g[yy][xx]!==T_SEA) g[yy][xx]=T_RIVER; });
+  var R=seedRnd(20260606);
+  for(var i=0;i<26;i++){
+    var fx=Math.floor(R()*MAP_W), fy=8+Math.floor(R()*(MAP_H-9));
+    var rad=1+Math.floor(R()*2);
+    for(var dy=-rad;dy<=rad;dy++) for(var dx=-rad;dx<=rad;dx++){
+      var px=fx+dx, py=fy+dy;
+      if(px<0||py<0||px>=MAP_W||py>=MAP_H) continue;
+      if(g[py][px]===T_PLAIN&&R()<0.75) g[py][px]=T_FOREST;
+    }
+  }
+  for(y=0;y<MAP_H;y++) for(x=0;x<MAP_W;x++){
+    if(g[y][x]===T_PLAIN&&R()<0.10) g[y][x]=T_GRASS;
+    if(g[y][x]===T_RIVER&&y>0&&g[y-1][x]!==T_RIVER&&R()<0.35) g[y][x]=T_MARSH;
+  }
+  CITIES.forEach(function(c){
+    for(var dy=-1;dy<=1;dy++) for(var dx=-1;dx<=1;dx++){
+      var px=c.x+dx, py=c.y+dy;
+      if(px<0||py<0||px>=MAP_W||py>=MAP_H) continue;
+      if(g[py][px]===T_PLAIN||g[py][px]===T_GRASS) if(R()<0.6) g[py][px]=T_PADDY;
+    }
+  });
+  WORLD=g;
+}
+function paintWorld(){
+  if(WORLD_ART) return WORLD_ART;
+  var cv=document.createElement('canvas');
+  cv.width=MAP_W*TILE; cv.height=MAP_H*TILE;
+  var g=cv.getContext('2d'); if(!g){ WORLD_ART=cv; return cv; }
+  var R=seedRnd(777);
+  var PAL={};
+  PAL[T_PLAIN]=['#4e6039','#57693f','#455633'];
+  PAL[T_GRASS]=['#5c6b3c','#66764a','#51603a'];
+  PAL[T_PADDY]=['#6a7440','#7c854c','#5b6739'];
+  PAL[T_FOREST]=['#2e4630','#3a5738','#243b2a'];
+  PAL[T_HILL]=['#6b6b45','#7a7a52','#585a3b'];
+  PAL[T_MOUNT]=['#5d5a51','#6f6c60','#48463e'];
+  PAL[T_RIVER]=['#2d5c78','#3b718f','#24506b'];
+  PAL[T_MARSH]=['#3f5c47','#4c6b52','#35503d'];
+  PAL[T_DUNE] =['#8a7a55','#98876a','#75664a'];
+  PAL[T_SEA]  =['#1d3f5c','#265074','#173351'];
+  function px(x,y,c){ g.fillStyle=c; g.fillRect(x,y,1,1); }
+  for(var ty=0;ty<MAP_H;ty++) for(var tx=0;tx<MAP_W;tx++){
+    var t=WORLD[ty][tx], p=PAL[t]||PAL[T_PLAIN];
+    var ox=tx*TILE, oy=ty*TILE, i, xx, yy;
+    g.fillStyle=p[0]; g.fillRect(ox,oy,TILE,TILE);
+    for(i=0;i<10;i++){
+      xx=ox+Math.floor(R()*TILE); yy=oy+Math.floor(R()*TILE);
+      px(xx,yy,R()<0.5?p[1]:p[2]);
+    }
+    if(t===T_MOUNT){
+      g.fillStyle='#7e7a6c'; g.beginPath(); g.moveTo(ox+2,oy+13); g.lineTo(ox+8,oy+3); g.lineTo(ox+14,oy+13); g.closePath(); g.fill();
+      g.fillStyle='#a8a496'; g.fillRect(ox+7,oy+4,3,2);
+      g.fillStyle='#4b4941'; g.fillRect(ox+9,oy+7,3,6);
+    }else if(t===T_HILL){
+      g.fillStyle='#7f7f55'; g.beginPath(); g.moveTo(ox+3,oy+12); g.lineTo(ox+8,oy+6); g.lineTo(ox+13,oy+12); g.closePath(); g.fill();
+    }else if(t===T_FOREST){
+      [[4,9],[8,7],[11,10]].forEach(function(tr){
+        g.fillStyle='#31402c'; g.fillRect(ox+tr[0],oy+tr[1]-1,1,3);
+        g.fillStyle='#4a6b3d'; g.fillRect(ox+tr[0]-2,oy+tr[1]-3,5,3);
+        g.fillStyle='#5c7f47'; g.fillRect(ox+tr[0]-1,oy+tr[1]-4,3,2);
+      });
+    }else if(t===T_RIVER||t===T_SEA){
+      g.fillStyle=(t===T_SEA)?'#3f6f96':'#5288a8';
+      for(i=0;i<3;i++) g.fillRect(ox+2+Math.floor(R()*10),oy+2+Math.floor(R()*12),2,1);
+      if(t===T_SEA){ g.fillStyle='#15304a'; g.fillRect(ox,oy+TILE-1,TILE,1); }
+    }else if(t===T_PADDY){
+      g.strokeStyle='rgba(30,45,25,.45)'; g.lineWidth=1;
+      for(i=0;i<3;i++){ g.beginPath(); g.moveTo(ox+2,oy+3+i*4); g.lineTo(ox+13,oy+3+i*4); g.stroke(); }
+    }else if(t===T_MARSH){
+      g.fillStyle='#4a6b52'; for(i=0;i<5;i++) g.fillRect(ox+2+Math.floor(R()*12),oy+2+Math.floor(R()*12),1,2);
+    }
+  }
+  WORLD_ART=cv;
+  return cv;
+}
+var mapCtx=null, mapCanvas=null;
+function renderMap(){
+  if(!S) return;
+  if(!WORLD) buildWorld();
+  if(!mapCanvas){ mapCanvas=document.getElementById('mapc'); if(!mapCanvas) return; mapCtx=mapCanvas.getContext('2d'); }
+  var Wpx=MAP_W*TILE, Hpx=MAP_H*TILE;
+  if(mapCanvas.width!==Wpx){ mapCanvas.width=Wpx; mapCanvas.height=Hpx; }
+  var g=mapCtx; if(!g) return;
+  g.clearRect(0,0,Wpx,Hpx);
+  g.drawImage(paintWorld(),0,0);
+  // 街道
+  g.strokeStyle='rgba(18,24,20,.72)'; g.lineWidth=4; g.setLineDash([]);
+  LINKS.forEach(function(L){
+    var a=findCity(L[0]), b=findCity(L[1]);
+    g.beginPath(); g.moveTo(a.x*TILE+8,a.y*TILE+8); g.lineTo(b.x*TILE+8,b.y*TILE+8); g.stroke();
+  });
+  g.strokeStyle='rgba(187,151,87,.9)'; g.lineWidth=2; g.setLineDash([4,3]);
+  LINKS.forEach(function(L){
+    var a=findCity(L[0]), b=findCity(L[1]);
+    g.beginPath(); g.moveTo(a.x*TILE+8,a.y*TILE+8); g.lineTo(b.x*TILE+8,b.y*TILE+8); g.stroke();
+  });
+  g.setLineDash([]);
+  // 長城（北方の防塞）
+  g.strokeStyle='rgba(190,180,150,.55)'; g.lineWidth=1; g.setLineDash([2,2]);
+  g.beginPath(); g.moveTo(20*TILE,5*TILE); g.lineTo(26*TILE,4*TILE); g.lineTo(29*TILE,5*TILE); g.stroke();
+  g.setLineDash([]);
+  // 都市
+  CITY_PX={};
+  CITIES.forEach(function(c){
+    var d=S.cities[c.k], stt=findState(d.owner), col=stt?stt.col:'#8a8a8a';
+    var cx=c.x*TILE, cy=c.y*TILE;
+    CITY_PX[c.k]={x:cx,y:cy};
+    drawCity(g,cx,cy,c,d,col);
+  });
+  // 選択・行動可能な都市の強調
+  var sel=S.ui.sel;
+  if(sel){
+    var d0=S.cities[sel], c0=findCity(sel);
+    g.strokeStyle=(d0.owner===S.me)?'#f5e2a8':'#e08a7c'; g.lineWidth=2;
+    g.strokeRect(c0.x*TILE-1,c0.y*TILE-1,TILE+2,TILE+2);
+  }
+  if(S.ui.mode){
+    legalTargets().forEach(function(tk){
+      var c=findCity(tk);
+      var mark=(S.ui.mode.kind==='attack')?'#ef7b6a':'#7fe0a0';
+      g.fillStyle=mark; g.fillRect(c.x*TILE+6,c.y*TILE-4,4,3);
+      g.strokeStyle=mark; g.lineWidth=1; g.strokeRect(c.x*TILE,c.y*TILE,TILE,TILE);
+    });
+  }
+}
+function drawCity(g,cx,cy,c,d,col){
+  var cap=(findState(d.owner)&&findState(d.owner).cap===c.k);
+  g.fillStyle='rgba(0,0,0,.35)'; g.fillRect(cx+2,cy+12,12,2);
+  // 城壁
+  g.fillStyle='#6d6455'; g.fillRect(cx+2,cy+5,12,8);
+  g.fillStyle='#8f8672'; g.fillRect(cx+2,cy+5,12,2);
+  g.fillStyle='#4c4638'; g.fillRect(cx+2,cy+9,12,1);
+  for(var i=0;i<4;i++) g.fillRect(cx+2+i*3,cy+3,2,2);             // 女牆
+  if(cap){ g.fillStyle='#6d6455'; g.fillRect(cx+4,cy+1,8,4); g.fillStyle='#8f8672'; g.fillRect(cx+4,cy+1,8,1); }
+  // 屋根
+  g.fillStyle=col; g.fillRect(cx+4,cy+(cap?3:6),8,3);
+  g.fillStyle=mix(col,-0.35); g.fillRect(cx+5,cy+(cap?4:7),6,1);
+  // 旗
+  g.fillStyle='#2b2b2b'; g.fillRect(cx+11,cy-2,1,6);
+  g.fillStyle=col; g.fillRect(cx+12,cy-2,3,3);
+  g.fillStyle=mix(col,0.3); g.fillRect(cx+12,cy-2,1,1);
+  // 守備兵のピクセル（1ドット=2兵）
+  var dots=Math.min(6,Math.ceil(d.garr/5));
+  for(var k=0;k<dots;k++){ g.fillStyle='#1a1f27'; g.fillRect(cx+2+k*2,cy+13,2,2); g.fillStyle='#e6e0cf'; g.fillRect(cx+2+k*2,cy+13,1,1); }
+  // 動揺
+  if(d.unrest>25){ g.fillStyle='#e0685c'; g.fillRect(cx+13,cy+10,2,2); }
+  // 兵力数（小さな数字）
+  if(d.garr>0){
+    g.fillStyle='rgba(6,9,13,.8)'; g.fillRect(cx-1,cy+14,10,6);
+    g.fillStyle='#f0e6c8'; g.font='bold 7px monospace'; g.textBaseline='top';
+    g.fillText(String(d.garr),cx,cy+14);
+  }
+}
+function fitMap(){
+  var wrap=document.getElementById('mapWrap'), cv=document.getElementById('mapc');
+  if(!wrap||!cv) return;
+  var aw=wrap.clientWidth-8, ah=wrap.clientHeight-8;
+  if(aw<=0||ah<=0){ return; }
+  var s=Math.min(aw/(MAP_W*TILE),ah/(MAP_H*TILE));
+  MAP_SCALE=Math.max(0.4,s);
+  cv.style.width=Math.floor(MAP_W*TILE*MAP_SCALE)+'px';
+  cv.style.height=Math.floor(MAP_H*TILE*MAP_SCALE)+'px';
+}
+function mapPick(ev){
+  var cv=document.getElementById('mapc'); if(!cv||!S) return null;
+  var r=cv.getBoundingClientRect();
+  var sx=(ev.touches&&ev.touches[0])?ev.touches[0].clientX:ev.clientX;
+  var sy=(ev.touches&&ev.touches[0])?ev.touches[0].clientY:ev.clientY;
+  var x=Math.floor((sx-r.left)/MAP_SCALE/TILE), y=Math.floor((sy-r.top)/MAP_SCALE/TILE);
+  var best=null,bd=1e9;
+  CITIES.forEach(function(c){
+    var dd=(c.x-x)*(c.x-x)+(c.y-y)*(c.y-y);
+    if(dd<bd){ bd=dd; best=c.k; }
+  });
+  return (bd<=4.2)?best:null;
+}
+function onMapTap(ev){
+  if(!S||S.over) return;
+  var k=mapPick(ev);
+  if(!k){ S.ui.mode=null; renderMap(); return; }
+  var m=S.ui.mode;
+  if(m&&m.from&&has(legalTargets(),k)){
+    if(m.kind==='move') moveArmy(m.from,k,true);
+    else if(m.kind==='split') moveArmy(m.from,k,false);
+    S.ui.mode=null; S.ui.sel=k; renderCamp(); return;
+  }
+  S.ui.sel=k; S.ui.mode=null;
+  renderCamp();
+}
+function onMapHover(ev){
+  var tip=document.getElementById('mapTip');
+  if(!tip||!S) return;
+  var k=mapPick(ev);
+  if(!k){ tip.style.display='none'; return; }
+  var d=S.cities[k], stt=findState(d.owner);
+  tip.innerHTML='<b>'+cityName(k)+'</b> ／ <span style="color:'+(stt?stt.col:'#999')+'">'+stateName(d.owner)+'</span><br>'+
+    t('k_garr')+': '+d.garr+' ・ '+t('k_walls')+': '+d.walls+'<br>'+
+    t('k_farms')+': '+d.farms+' ・ '+t('k_town')+': '+d.town+' ・ '+t('k_train')+': '+d.train+
+    (d.unrest>0?('<br>'+t('k_unrest')+': '+d.unrest):'');
+  tip.style.display='block';
+  var wrap=document.getElementById('mapWrap'), r=wrap.getBoundingClientRect();
+  var px=(ev.clientX-r.left)+10, py=(ev.clientY-r.top)+10;
+  tip.style.left=Math.min(px,r.width-240)+'px'; tip.style.top=Math.min(py,r.height-70)+'px';
+}
+function legalTargets(){
+  var m=S.ui.mode; if(!m) return [];
+  var out=[];
+  neighbors(m.from).forEach(function(l){
+    var d=S.cities[l.to];
+    if(m.kind==='move'||m.kind==='split'){ if(d.owner===S.me) out.push(l.to); }
+    else if(m.kind==='attack'){ if(d.owner!==S.me&&st(d.owner).alive) out.push(l.to); }
+  });
+  return out;
+}
+
+/* ---------- 戦略画面のパネル ---------- */
+function renderCamp(){
+  if(!S) return;
+  var s=st(S.me);
+  var tag=document.getElementById('stateTag');
+  if(tag){ var meS=findState(S.me); tag.innerHTML='<span style="color:'+meS.col+'">■</span> '+stateName(S.me); }
+  var dt=document.getElementById('dateTag'); if(dt) dt.textContent=t('date',{y:S.year,s:t('sea_'+SEASONS[S.season])});
+  setChip('chipGold',s.gold,s.gold<10);
+  setChip('chipFood',s.food,s.food<8);
+  setChip('chipMen',s.men,null);
+  setChip('chipPrestige',calcPrestige(S.me),null);
+  setChip('chipPol',s.pol,s.pol<=0);
+  var cs=document.getElementById('chipStab');
+  if(cs){ var cb=cs.querySelector('b'); if(cb) cb.textContent=s.stab; var bar=cs.querySelector('.meter>b'); if(bar&&bar.style) bar.style.width=s.stab+'%'; cs.classList.toggle('bad',s.stab<35); }
+  var wars=aliveStates().filter(function(k){ return k!==S.me&&atWar(S.me,k); });
+  var wt=document.getElementById('warTag');
+  if(wt) wt.textContent=wars.length? (t('k_atwar')+': '+wars.map(function(k){ return stateName(k); }).join(' ')) : t('k_allpeace');
+  renderPowers();
+  renderCityPanel();
+  renderLog();
+  renderMap();
+}
+function setChip(id,v,bad){
+  var el=document.getElementById(id); if(!el) return;
+  var b=el.querySelector('b'); if(b) b.textContent=v;
+  el.classList.toggle('bad',!!bad);
+}
+function renderPowers(){
+  var box=document.getElementById('powerList'); if(!box) return;
+  var h='';
+  STATES.forEach(function(o){
+    var k=o.k, s=st(k);
+    if(!s.alive) return;
+    var w=warOf(S.me,k), r=relOf(S.me,k);
+    var cls=k===S.me?'you':(w&&w.s==='war'?'war':(w&&w.s==='ally'?'ally':'peace'));
+    var label=k===S.me?t('p_you'):(w&&w.s==='war'?t('p_war'):(w&&w.s==='ally'?t('p_ally'):(w&&w.s==='truce'?t('p_truce'):t('p_peace'))));
+    h+='<div class="wrow"><span class="dot" style="background:'+o.col+'"></span>'+
+       '<span class="nm">'+stateName(k)+'</span>'+
+       '<span class="st '+cls+'">'+label+'</span></div>'+
+       '<div class="wrow" style="border:0;padding:0 0 3px 15px;font-size:10px;color:#8ea3b8">'+
+       t('p_cities')+': '+citiesOf(k).length+' ・ '+t('p_garr')+': '+totalGarr(k)+
+       ' ・ '+t('p_rel')+': '+r;
+    if(k!==S.me){
+      h+=' <button class="tiny" data-dip="envoy" data-s="'+k+'">'+t('d_envoy')+'</button>';
+      if(atWar(S.me,k)) h+=' <button class="tiny" data-dip="peace" data-s="'+k+'">'+t('d_peace')+'</button>';
+      else if(!allied(S.me,k)) h+=' <button class="tiny" data-dip="ally" data-s="'+k+'">'+t('d_ally')+'</button>';
+      if(!atWar(S.me,k)&&w&&w.s!=='ally') h+=' <button class="tiny" data-dip="war" data-s="'+k+'">'+t('d_war')+'</button>';
+    }
+    h+='</div>';
+  });
+  box.innerHTML=h;
+  var btns=box.querySelectorAll?box.querySelectorAll('button[data-dip]'):[];
+  for(var i=0;i<btns.length;i++){
+    (function(b){
+      b.addEventListener('click',function(){
+        var kk=b.getAttribute('data-s')||b.dataset.s, what=b.getAttribute('data-dip')||b.dataset.dip;
+        if(what==='envoy') envoyAct(kk);
+        else if(what==='peace') peaceAct(kk);
+        else if(what==='ally') allianceAct(kk);
+        else if(what==='war'){ declareWar(S.me,kk,false); renderCamp(); saveGame(true); }
+      });
+    })(btns[i]);
+  }
+}
+function renderCityPanel(){
+  var box=document.getElementById('cityInfo'), act=document.getElementById('cityAct'), ttl=document.getElementById('cityTitle');
+  if(!box||!act) return;
+  var k=S.ui.sel;
+  if(ttl) ttl.textContent=k?(cityName(k)+' ／ '+stateName(S.cities[k].owner)):'―';
+  if(!k){ box.innerHTML=''; act.innerHTML=''; return; }
+  var d=S.cities[k], s=st(S.me), own=(d.owner===S.me);
+  var gs=gensAt(k);
+  var h='<div class="rowline"><span>'+t('p_pop')+'</span><b>'+findCity(k).pop+'</b></div>'+
+    '<div class="rowline"><span>'+t('k_garr')+'</span><b>'+d.garr+'</b></div>'+
+    '<div class="rowline"><span>'+t('k_walls')+'</span><b>'+d.walls+'</b></div>'+
+    '<div class="rowline"><span>'+t('k_farms')+'</span><b>'+d.farms+'</b></div>'+
+    '<div class="rowline"><span>'+t('k_town')+'</span><b>'+d.town+'</b></div>'+
+    '<div class="rowline"><span>'+t('k_train')+'</span><b>'+d.train+'</b></div>';
+  if(d.unrest>0) h+='<div class="rowline"><span>'+t('k_unrest')+'</span><b style="color:#e08a7c">'+d.unrest+'</b></div>';
+  h+='<div style="margin-top:5px;font-size:10.5px;color:#9db1c6">'+t('p_gens')+'</div>';
+  if(gs.length){
+    gs.forEach(function(g){
+      var sd=S.gen[g.k];
+      h+='<div class="rowline"><span>'+genName(g.k)+' <span style="color:#7d8fa4">('+g.lead+'/'+g.war+'/'+g.int+')</span></span>'+
+         '<b>'+(sd.side===S.me?t('loyal')+' '+sd.loyal:stateName(sd.side))+'</b></div>';
+    });
+  } else h+='<div class="rowline"><span>'+t('p_nogen')+'</span><b>―</b></div>';
+  box.innerHTML=h;
+  // ボタン
+  var A=[];
+  if(own){
+    A.push({a:'dev',p:'farms',i:t('cost_gold')+' '+DEV.farms.gold,l:t('dev_farms')});
+    A.push({a:'dev',p:'town',i:t('cost_gold')+' '+DEV.town.gold,l:t('dev_town')});
+    A.push({a:'dev',p:'walls',i:t('cost_gold')+' '+DEV.walls.gold,l:t('dev_walls')});
+    A.push({a:'dev',p:'train',i:t('cost_gold')+' '+DEV.train.gold,l:t('dev_train')});
+    A.push({a:'recruit',p:'',i:t('cost_gold')+' '+DEV.recruit.gold+' / '+t('cost_men')+' 12',l:t('dev_recruit')});
+    A.push({a:'appease',p:'',i:t('cost_gold')+' '+DEV.appease.gold,l:t('dev_appease')});
+    A.push({a:'move',p:'',i:t('cost_pol')+' 1',l:t('act_move')});
+    A.push({a:'split',p:'',i:t('cost_pol')+' 1',l:t('act_split')});
+    neighbors(k).forEach(function(l){
+      var od=S.cities[l.to];
+      if(od.owner!==S.me&&st(od.owner).alive) A.push({a:'attack',p:l.to,i:t('cost_pol')+' 2',l:t('act_attack')+' '+cityName(l.to)});
+    });
+    if(S.guest&&S.gen[S.guest]&&S.gen[S.guest].hidden) A.push({a:'hire',p:S.guest,i:t('cost_gold')+' 30',l:t('act_hire')+' '+genName(S.guest)});
+    if(gs.length&&gs[0].side===S.me) A.push({a:'reward',p:gs[0].k,i:t('cost_gold')+' 12',l:t('act_reward')});
+  }
+  var hh='';
+  A.forEach(function(b,idx){ hh+='<button data-ai="'+idx+'">'+b.l+'<i>'+b.i+'</i></button>'; });
+  act.innerHTML=hh;
+  act._acts=A;
+  var btns=act.querySelectorAll?act.querySelectorAll('button'):[];
+  for(var i=0;i<btns.length;i++){
+    (function(b){
+      b.addEventListener('click',function(){
+        var A2=act._acts, a=A2[+b.getAttribute('data-ai')];
+        if(!a) return;
+        doAction(a);
+      });
+    })(btns[i]);
+  }
+}
+function doAction(a){
+  var k=S.ui.sel;
+  if(a.a==='dev') dev(k,a.p);
+  else if(a.a==='recruit') dev(k,'recruit');
+  else if(a.a==='appease') appeaseAct(k);
+  else if(a.a==='move'){ S.ui.mode={kind:'move',from:k}; renderMap(); renderCityPanel(); }
+  else if(a.a==='split'){ S.ui.mode={kind:'split',from:k}; renderMap(); renderCityPanel(); }
+  else if(a.a==='attack'){ openSetup(k,a.p); }
+  else if(a.a==='hire') hireGen(a.p,k);
+  else if(a.a==='reward') rewardGen(a.p);
+}
+function renderLog(){
+  var box=document.getElementById('campLog'); if(!box) return;
+  var h='';
+  S.log.slice(0,14).forEach(function(L){
+    h+='<div class="logline"><span class="t">'+L.y+'-'+t('sea_short_'+SEASONS[L.s])+'</span>'+tlog(L)+'</div>';
+  });
+  box.innerHTML=h;
+}
+function tlog(L){ return tr(L.k,L.p); }
+function tr(k,p){ return t(k,p); }
+/* =====================================================================
+   8. 表示（戦術レイヤー）
+   ===================================================================== */
+var CELLS={}, boardEl=null;
+function unitById(id){ if(!BT) return null; for(var i=0;i<BT.units.length;i++) if(BT.units[i].id===id) return BT.units[i]; return null; }
+function buildBoard(){
+  boardEl=document.getElementById('board');
+  if(!boardEl||!BT) return;
+  boardEl.innerHTML=''; CELLS={};
+  boardEl.style.gridTemplateColumns='repeat('+BT.cols+',var(--cell,34px))';
+  var rot=(BT.meSide==='e');
+  for(var dy=0;dy<BT.rows;dy++) for(var dx=0;dx<BT.cols;dx++){
+    var x=rot?BT.cols-1-dx:dx, y=rot?BT.rows-1-dy:dy;
+    var el=document.createElement('div');
+    el.className='cell t-plain';
+    el.setAttribute('data-x',x); el.setAttribute('data-y',y);
+    boardEl.appendChild(el);
+    CELLS[x+','+y]=el;
+  }
+}
+function hlSets(){
+  var mv={},hit={},sk={};
+  if(!BT||BT.over) return {mv:mv,hit:hit,sk:sk};
+  var u=BT.sel?unitById(BT.sel):null;
+  if(u&&!u.acted&&u.side===BT.meSide){
+    var reach=bReach(BT,u);
+    for(var key in reach){
+      var p=key.split(',');
+      mv[p[0]+','+p[1]]=1;
+      bTargets(BT,u,+p[0],+p[1]).forEach(function(tg){
+        if(tg.kind==='unit') hit[tg.u.x+','+tg.u.y]=1; else hit[tg.x+','+tg.y]=1;
+      });
+    }
+  }
+  if(BT.skill) for(var y2=0;y2<BT.rows;y2++) for(var x2=0;x2<BT.cols;x2++) sk[x2+','+y2]=1;
+  return {mv:mv,hit:hit,sk:sk};
+}
+function renderBattle(){
+  if(!BT) return;
+  if(!boardEl||!boardEl.childNodes.length) buildBoard();
+  var H=hlSets();
+  for(var y=0;y<BT.rows;y++) for(var x=0;x<BT.cols;x++){
+    var el=CELLS[x+','+y]; if(!el) continue;
+    var tile=BT.tiles[y][x], key=x+','+y;
+    var cls='cell t-'+tile.t;
+    if(tile.owner) cls+=' own-'+tile.owner;
+    if(H.mv[key]) cls+=' hl-move';
+    if(H.hit[key]) cls+=' hl-hit';
+    if(H.sk[key]) cls+=' hl-skill';
+    var inner='';
+    var gl=tglyph(tile.t);
+    if(gl) inner+='<span class="terr">'+gl+'</span>';
+    var u=bUnitAt(BT,x,y);
+    if(u){
+      inner+='<div class="chip'+(u.side===BT.meSide&&u.acted?' spent':'')+'">'+
+        '<img class="spr" alt="" src="'+spriteUri(u.type,teamOf(BT,u.side))+'"></div>'+
+        '<div class="hpb"><b class="'+(u.hp/u.max<0.4?'low':'')+'" style="width:'+Math.max(2,Math.round(u.hp/u.max*100))+'%"></b></div>';
+      if(BT.sel===u.id) cls+=' sel';
+      if(tile.t==='base') inner+='<span class="gen">★</span>';
+    }
+    el.className=cls;
+    el.innerHTML=inner;
+  }
+  renderBatHud();
+  renderBatPanel();
+  renderBattleControls();
+  fit();
+}
+function teamOf(B,side){
+  var stt=findState(side==='p'?B.att:B.def);
+  var col=stt?stt.col:(side==='p'?'#4f86c4':'#c4574a');
+  return {c:col,d:mix(col,-0.45),l:mix(col,0.32)};
+}
+function tglyph(terr){
+  var g=TERRAIN[terr].glyph;
+  return g?t('tg_'+terr):'';
+}
+function renderBatHud(){
+  var box=document.getElementById('batSides');
+  if(box) box.innerHTML=sideHtml('p')+sideHtml('e');
+  var bt=document.getElementById('batTurn'); if(bt) bt.textContent=t('b_turn',{n:BT.turn,max:BT.maxTurn});
+  var ph=document.getElementById('batPhase');
+  if(ph) ph.textContent=BT.over?t('phase_over'):t('phase_you');
+  var ob=document.getElementById('batObj');
+  if(ob) ob.textContent=(BT.siege?t('obj_siege'):t('obj_field'))+' '+cityName(BT.city);
+}
+function sideHtml(side){
+  var stt=findState(side==='p'?BT.att:BT.def);
+  var nm=(side===BT.meSide)?t('side_me'):t('side_foe');
+  var hp=Math.max(0,BT.baseHp[side]), hpmax=(side==='e')?(16+BT.walls*4):16;
+  var hpb=Math.max(0,Math.round(hp/hpmax*100));
+  return '<div class="side"><div class="nm"><span class="dot" style="background:'+(stt?stt.col:'#888')+'"></span>'+
+    nm+' '+stateName(side==='p'?BT.att:BT.def)+' <span style="color:#8fa3b8">('+t(side==='p'?'r_att':'r_def')+')</span></div>'+
+    '<div class="mini"><span>'+t('k_base')+' <b>'+hp+'</b></span><span>'+t('k_morale')+' <b>'+BT.morale[side]+'</b></span>'+
+    '<span>'+t('k_units')+' <b>'+bUnits(BT,side).length+'/'+BT.cap[side]+'</b></span></div>'+
+    '<div class="meter blue" style="height:5px"><b style="width:'+hpb+'%"></b></div>'+
+    '<div class="meter green" style="height:4px;margin-top:2px"><b style="width:'+BT.morale[side]+'%"></b></div>'+
+    '<div class="mini" style="margin-top:2px"><span>'+t('k_tac')+' <b>'+('●●●'.slice(0,BT.tac[side]))+'</b></span>'+
+    '<span>'+(BT.gen[side]?genName(BT.gen[side]):'―')+'</span></div></div>';
+}
+function renderBatPanel(){
+  var box=document.getElementById('batPanel'); if(!box) return;
+  var h='', u=BT.sel?unitById(BT.sel):null;
+  if(u){
+    var T=TYPES[u.type];
+    h+='<div class="unitcard"><img alt="" src="'+spriteUri(u.type,teamOf(BT,u.side))+'">'+
+      '<div><div class="nm">'+T.n[LANG]+'</div><div class="st">'+(u.side===BT.meSide?t('side_me'):t('side_foe'))+
+      (u.acted?' ／ '+t('st_spent'):'')+'</div></div></div>'+
+      '<div class="statgrid"><span>'+t('th_hp')+'<b>'+u.hp+'/'+u.max+'</b></span>'+
+      '<span>'+t('th_atk')+'<b>'+Math.round(T.atk*u.atkMul*(u.buff?1.5:1))+'</b></span>'+
+      '<span>'+t('th_move')+'<b>'+(T.move+(u.buff?2:0))+'</b></span></div>'+
+      '<div class="statgrid"><span>'+t('th_range')+'<b>'+T.range+'</b></span>'+
+      '<span>'+t('th_terr')+'<b>'+TERRAIN[bTile(BT,u.x,u.y).t].n[LANG]+'</b></span></div>'+
+      '<div style="font-size:10px;color:#9db1c6;margin-top:4px">'+t('cnt_hint')+' '+
+      TKEYS.map(function(k2){ return TYPES[k2].n[LANG]+'×'+CNT[u.type][k2].toFixed(2); }).join(' ')+'</div>';
+  }else{
+    h+='<div style="font-size:10.5px;color:#9db1c6">'+t('hint_sel')+'</div>';
+  }
+  h+='<div style="margin-top:6px">'+BT.log.slice(0,10).map(function(L){ return '<div class="logline">'+t(L.k,L.p)+'</div>'; }).join('')+'</div>';
+  box.innerHTML=h;
+}
+function renderBattleControls(){
+  var sk=skillOf(BT,BT.meSide), sb=document.getElementById('skillBtn');
+  if(sb){
+    if(!sk) sb.style.display='none';
+    else{
+      sb.style.display='';
+      sb.className='skill'+(BT.skill?' on':'');
+      sb.textContent=sk.def.n[LANG]+' ('+sk.def.cost+')';
+      sb.disabled=!skillReady(BT,BT.meSide)||!!BT.over;
+    }
+  }
+  var ub=document.getElementById('undoBtn'); if(ub) ub.disabled=!(BT.undo&&BT.undo.length);
+  var rb=document.getElementById('retreatBtn'); if(rb) rb.disabled=!!BT.over;
+  var eb=document.getElementById('endBtn'); if(eb) eb.disabled=!!BT.over;
+}
+function fit(){
+  var wrap=document.getElementById('wrap'), board=document.getElementById('board');
+  if(!wrap||!board||!BT) return;
+  var availW=wrap.clientWidth-6, availH=wrap.clientHeight-6;
+  if(availW<=0||availH<=0) return;
+  var gap=2;
+  var s=Math.floor(Math.min((availW-(BT.cols-1)*gap-10)/BT.cols,(availH-(BT.rows-1)*gap-10)/BT.rows));
+  s=clamp(s,26,62);
+  var needW=BT.cols*(s+gap), needH=BT.rows*(s+gap);
+  wrap.classList.toggle('fit',needW<=availW&&needH<=availH);
+  document.body.classList.toggle('scrolling',needW>availW||needH>availH);
+  wrap.style.setProperty('--cell',s+'px');
+  board.style.setProperty('--cell',s+'px');
+}
+function revealCell(x,y){
+  var wrap=document.getElementById('wrap'), el=CELLS[x+','+y];
+  if(!wrap||!el||!el.scrollIntoView) return;
+  try{ el.scrollIntoView({block:'nearest',inline:'nearest'}); }catch(e){ try{ el.scrollIntoView(); }catch(e2){} }
+}
+function boardTap(x,y){
+  if(!BT||BT.over) return;
+  var key=x+','+y, me=BT.meSide;
+  if(BT.skill){
+    var ok=useSkill(BT,me,x,y);
+    BT.skill=null;
+    if(!ok) blog(BT,'b_skill_no',null);
+    renderBattle();
+    if(BT.over) finishBattleUI();
+    return;
+  }
+  var u=BT.sel?unitById(BT.sel):null;
+  if(u&&u.side===me&&!u.acted){
+    var reach=bReach(BT,u), tg=null;
+    bTargets(BT,u,u.x,u.y).forEach(function(t2){
+      if(t2.kind==='unit'){ if(t2.u.x===x&&t2.u.y===y) tg=t2; }
+      else if(t2.x===x&&t2.y===y) tg=t2;
+    });
+    if(tg){ pushUndoB(); bAttack(BT,u,tg); BT.sel=null; renderBattle(); if(BT.over) finishBattleUI(); else saveGame(true); return; }
+    if(reach[key]!==undefined){ pushUndoB(); bMove(BT,u,x,y); sfx('move'); BT.sel=u.id; renderBattle(); revealCell(x,y); saveGame(true); return; }
+  }
+  var eu=bUnitAt(BT,x,y);
+  if(eu&&eu.side===me){ BT.sel=(BT.sel===eu.id)?null:eu.id; sfx(BT.sel?'sel':'unsel'); renderBattle(); return; }
+  BT.sel=null; renderBattle();
+}
+
+/* =====================================================================
+   9. オーバーレイ
+   ===================================================================== */
+function renderSetup(){
+  var pend=S.ui.pending; if(!pend) return;
+  var from=S.cities[pend.from], to=S.cities[pend.to];
+  var maxT=from.garr, minT=Math.min(8,maxT);
+  S.ui.commit=clamp(S.ui.commit||Math.min(maxT,Math.max(16,Math.round(maxT*0.8))),minT,maxT);
+  var unitCount=battleUnitCount(S.ui.commit);
+  S.ui.comp=resizeArmyComp(S.ui.comp||defaultArmyComp(pend.from,pend.to,unitCount),pend.from,pend.to,unitCount);
+  var avail=setupGens(pend.from);
+  if(S.ui.gen&&!has(avail,S.ui.gen)) S.ui.gen=null;
+  if(!S.ui.gen&&avail.length) S.ui.gen=avail[0];
+  var h=t('setup_body',{f:cityName(pend.from),t:cityName(pend.to),o:stateName(to.owner),g:to.garr,w:to.walls,
+      lk:t('lk_'+(linkInfo(pend.from,pend.to)||{t:'plain'}).t)})+
+    '<div class="setrow"><span>'+t('setup_troops')+'</span>'+
+    '<input type="range" id="commitRange" min="'+minT+'" max="'+maxT+'" step="2" value="'+S.ui.commit+'">'+
+    '<b id="commitVal">'+S.ui.commit+'</b></div>'+
+    '<div class="setrow"><span>'+t('setup_est')+'</span><b id="estVal">'+estText(S.ui.commit)+'</b></div>'+
+    '<div id="compPanel"></div>'+
+    '<h3>'+t('setup_gen')+'</h3><div class="picklist" id="genPick"></div>'+
+    '<p class="note">'+t('setup_note')+'</p>';
+  var body=document.getElementById('setupBody'); if(body) body.innerHTML=h;
+  renderSetupComposition(pend.from,pend.to,unitCount);
+  var gp=document.getElementById('genPick');
+  if(gp){
+    var hh='<button class="genpick'+(!S.ui.gen?' sel':'')+'" data-g="">'+t('p_nogen')+'</button>';
+    avail.forEach(function(gk){
+      var g=genData(gk);
+      hh+='<button class="genpick'+(S.ui.gen===gk?' sel':'')+'" data-g="'+gk+'"><b>'+genName(gk)+'</b>'+
+        '<span>'+t('g_lead')+' '+g.lead+' / '+t('g_war')+' '+g.war+' / '+t('g_int')+' '+g.int+' ／ '+SKILLS[g.skill].n[LANG]+'</span></button>';
+    });
+    gp.innerHTML=hh;
+    var bs=gp.querySelectorAll?gp.querySelectorAll('button'):[];
+    for(var i=0;i<bs.length;i++) bs[i].addEventListener('click',function(){
+      S.ui.gen=this.getAttribute('data-g')||null; renderSetup(); sfx('ui');
+    });
+  }
+  var rng=document.getElementById('commitRange');
+  if(rng) rng.addEventListener('input',function(){
+    S.ui.commit=+this.value;
+    var count=battleUnitCount(S.ui.commit);
+    S.ui.comp=resizeArmyComp(S.ui.comp,pend.from,pend.to,count);
+    var cv=document.getElementById('commitVal'); if(cv) cv.textContent=S.ui.commit;
+    var ev2=document.getElementById('estVal'); if(ev2) ev2.textContent=estText(S.ui.commit);
+    renderSetupComposition(pend.from,pend.to,count);
+  });
+}
+function renderSetupComposition(from,to,count){
+  var panel=document.getElementById('compPanel'); if(!panel) return;
+  var h='<h3>'+t('setup_comp')+'</h3><div class="compGrid">';
+  TKEYS.forEach(function(k){
+    h+='<label>'+TYPES[k].n[LANG]+'<input type="number" min="0" max="'+count+'" step="1" value="'+S.ui.comp[k]+'" data-comp="'+k+'"></label>';
+  });
+  panel.innerHTML=h+'</div><div id="compTotal" class="note"></div>';
+  var inputs=panel.querySelectorAll?panel.querySelectorAll('input[data-comp]'):[];
+  for(var i=0;i<inputs.length;i++) inputs[i].addEventListener('input',function(){
+    var key=this.getAttribute('data-comp'), old=S.ui.comp[key];
+    var value=clamp(Math.floor(+this.value||0),0,count), delta=value-old;
+    S.ui.comp[key]=value;
+    if(delta>0){
+      for(var j=0;j<TKEYS.length&&delta>0;j++){
+        var other=TKEYS[j];
+        if(other===key) continue;
+        var moved=Math.min(delta,S.ui.comp[other]);
+        S.ui.comp[other]-=moved; delta-=moved;
+      }
+    }else if(delta<0){
+      var fill=key==='inf'?(TKEYS.find(function(k){return k!=='inf';})||'inf'):'inf';
+      S.ui.comp[fill]-=delta;
+    }
+    updateSetupComposition(count);
+  });
+  updateSetupComposition(count);
+}
+function updateSetupComposition(count){
+  var panel=document.getElementById('compPanel');
+  if(panel){
+    var inputs=panel.querySelectorAll?panel.querySelectorAll('input[data-comp]'):[];
+    for(var i=0;i<inputs.length;i++){
+      var key=inputs[i].getAttribute('data-comp');
+      inputs[i].value=S.ui.comp[key];
+    }
+  }
+  var total=armyCompTotal(S.ui.comp), label=document.getElementById('compTotal');
+  if(label){
+    label.textContent=t('setup_comp_total',{n:total,max:count});
+    label.style.color=total===count?'':'var(--danger)';
+  }
+  var go=document.getElementById('setupGo');
+  if(go) go.disabled=total!==count;
+}
+function setupGens(fromKey){
+  var out=[];
+  GENERALS.forEach(function(g){
+    var s=S.gen[g.k];
+    if(!s||s.dead||s.side!==S.me||s.pendingCapt) return;
+    if(s.city===fromKey) out.push(g.k);
+    else if(s.city&&S.cities[s.city]&&S.cities[s.city].owner===S.me&&linkInfo(s.city,fromKey)) out.push(g.k);
+  });
+  out.sort(function(a,b){ var A=genData(a),B2=genData(b); return (B2.lead*2+B2.war+B2.int)-(A.lead*2+A.war+A.int); });
+  return out;
+}
+function estText(commit){
+  return t('setup_estv',{c:battleUnitCount(commit)});
+}
+function showBattleResult(){
+  var lb=S.lastBattle; if(!lb) return;
+  var big=document.getElementById('bigResult');
+  if(big){ big.textContent=lb.win?t('res_win'):t('res_lose'); big.className=lb.win?'win':'lose'; }
+  var body=document.getElementById('resBody');
+  var h='<p>'+t('res_line',{c:cityName(lb.city),r:t('rsn_'+lb.reason),n:lb.turn})+'</p>'+
+    '<table><tr><th>'+t('th_side')+'</th><th>'+t('th_loss')+'</th></tr>'+
+    '<tr><td>'+t('side_me')+'（'+(lb.meAtk?t('r_att'):t('r_def'))+'）</td><td>'+lb.myLoss+'</td></tr>'+
+    '<tr><td>'+t('side_foe')+'（'+(lb.meAtk?t('r_def'):t('r_att'))+'）</td><td>'+lb.foeLoss+'</td></tr></table>'+
+    '<p class="note">'+t(lb.win?'res_note_win':'res_note_lose')+'</p>';
+  var caps=(S.captives||[]).filter(function(gk){ return S.gen[gk]&&S.gen[gk].pendingCapt; });
+  if(caps.length){
+    h+='<h3>'+t('cap_title')+'</h3>';
+    caps.forEach(function(gk){
+      h+='<div style="font-size:11px;color:#c6d3e2;margin-top:4px">'+genName(gk)+'（'+(genData(gk)?genData(gk).n[LANG]:'')+'）</div>'+
+        '<div class="rowbtn" style="margin-top:4px">'+
+        '<button data-fate="hire" data-g="'+gk+'">'+t('fate_hire')+'</button>'+
+        '<button data-fate="free" data-g="'+gk+'">'+t('fate_free')+'</button>'+
+        '<button class="warn" data-fate="kill" data-g="'+gk+'">'+t('fate_kill')+'</button></div>';
+    });
+  }
+  if(body) body.innerHTML=h;
+  var btns=body&&body.querySelectorAll?body.querySelectorAll('button[data-fate]'):[];
+  for(var i=0;i<btns.length;i++) btns[i].addEventListener('click',function(){
+    captiveFate(this.getAttribute('data-g'),this.getAttribute('data-fate'));
+    showBattleResult();
+  });
+  var bb=document.getElementById('resBtns');
+  if(bb){
+    bb.innerHTML='<button class="go" id="resClose">'+t('btn_back')+'</button>';
+    var cb=document.getElementById('resClose');
+    if(cb) cb.addEventListener('click',function(){
+      closeOverlay('resOv');
+      var end=checkVictory();
+      showScreen('scrCamp'); renderCamp(); fitMap();
+      drainNotices();
+      if(end) showGameOver(end);
+    });
+  }
+  openOverlay('resOv');
+}
+var NOTICE_Q=[];
+function showEvents(list){ NOTICE_Q=NOTICE_Q.concat(list||[]); drainNotices(); }
+function drainNotices(){
+  var q=(S&&S.notices)?S.notices.slice():[];
+  if(S) S.notices=[];
+  var all=q.concat(NOTICE_Q);
+  NOTICE_Q=[];
+  if(!all.length){
+    if(S&&S.pendingBattle&&!S.battle) startPendingBattle();
+    return;
+  }
+  var ev=all[0];
+  if(all.length>1) NOTICE_Q=all.slice(1);
+  var ti=document.getElementById('evTitle'), bd=document.getElementById('evBody');
+  if(ti) ti.textContent=t('ev_title');
+  if(bd) bd.innerHTML='<p style="font-size:13px;color:#e8e2cd">'+t(ev.k,ev.p)+'</p>';
+  openOverlay('evOv');
+}
+function showGameOver(end){
+  var ti=document.getElementById('endTitle'), bd=document.getElementById('endBody');
+  if(ti){ ti.textContent=end.win?t('end_win'):t('end_lose'); ti.className=end.win?'win':'lose'; }
+  if(bd){
+    var mine=citiesOf(S.me).length;
+    bd.innerHTML='<p>'+t(end.reason==='unify'?'end_win_d':'end_lose_d',{y:S.year,n:mine,c:CITIES.length})+'</p>'+
+      '<p class="note">'+t('end_stat',{t:S.turn,g:st(S.me).gold,f:st(S.me).food,p:calcPrestige(S.me)})+'</p>';
+  }
+  PROF.runs=(PROF.runs||0)+1;
+  if(end.win) PROF.wins=(PROF.wins||0)+1;
+  saveProfile();
+  lsDel(LS_S);
+  openOverlay('endOv');
+}
+/* =====================================================================
+   10. タイトル・言語・配線・起動
+   ===================================================================== */
+var SEL_STATE=PROF.state||'wei';
+function buildTitleCards(){
+  var box=document.getElementById('statePick'); if(!box) return;
+  var h='';
+  STATES.forEach(function(s){
+    var cap=findCity(s.cap);
+    h+='<button class="statecard'+(SEL_STATE===s.k?' sel':'')+'" data-st="'+s.k+'">'+
+      '<span class="dot" style="background:'+s.col+'"></span>'+
+      '<span><span class="nm">'+s.n[LANG]+'</span><span class="cap">'+(s.n[LANG]!==s.n.en?s.n.en+' ／ ':'')+cityName(cap.k)+'</span></span></button>';
+  });
+  box.innerHTML=h;
+  var bs=box.querySelectorAll?box.querySelectorAll('button[data-st]'):[];
+  for(var i=0;i<bs.length;i++) bs[i].addEventListener('click',function(){
+    SEL_STATE=this.getAttribute('data-st'); sfx('ui'); buildTitleCards(); drawTitleArt();
+  });
+  var note=document.getElementById('titleNote');
+  if(note){
+    var sv=loadSave();
+    note.textContent=sv? t('note_saved',{s:stateName(sv.me),y:sv.year}) : t('note_nosave');
+  }
+  var dn=document.getElementById('diffNote');
+  if(dn) dn.textContent=t('diff_note_'+PROF.diff);
+}
+function drawTitleArt(){
+  var cv=document.getElementById('titleCanvas'); if(!cv) return;
+  var g=cv.getContext('2d'); if(!g) return;
+  var W=cv.width, H=cv.height;
+  g.clearRect(0,0,W,H);
+  var stt=findState(SEL_STATE)||STATES[0];
+  function block(x,y,w,h,col){ g.fillStyle=col; g.fillRect(x,y,w,h); }
+  var R=seedRnd(4242), i;
+  block(0,0,W,H,'#17263a');
+  block(0,0,W,20,'#20364d');
+  block(0,20,W,15,'#354658');
+  block(0,35,W,13,'#6a5747');
+  block(0,48,W,24,'#24362b');
+  block(0,47,W,3,'#48513a');
+  // Evening sky, stepped clouds and a pixel sun.
+  block(88,8,12,2,'#e7b969'); block(84,10,20,2,'#e7b969');
+  block(88,12,12,2,'#d58b58'); block(91,14,6,2,'#b9634d');
+  [[15,8,9],[41,14,13],[71,6,8],[103,22,10]].forEach(function(c){
+    block(c[0]+2,c[1]-2,c[2]-4,2,'#9aa5a0');
+    block(c[0],c[1],c[2],3,'#778995');
+    block(c[0]+3,c[1]+3,c[2]-2,2,'#596d7b');
+  });
+  for(i=0;i<28;i++){
+    var sx=Math.floor(R()*W), sy=Math.floor(R()*28);
+    block(sx,sy,1,1,i%3?'#aab2a7':'#d7c08a');
+  }
+  // Distant ridgelines and pine silhouettes.
+  block(0,38,19,3,'#394651'); block(5,35,18,3,'#3c4b56');
+  block(91,36,29,4,'#3c4a4b'); block(105,33,15,3,'#465250');
+  [[5,42],[15,39],[98,40],[113,37]].forEach(function(p){
+    block(p[0]+3,p[1],2,10,'#252f2c');
+    block(p[0]+1,p[1]+2,6,2,'#43523a');
+    block(p[0],p[1]+4,8,2,'#354735');
+    block(p[0]+2,p[1]+6,4,2,'#2d3e31');
+  });
+  // Castle keep, layered roofs, stonework and lit windows.
+  block(31,43,59,9,'#292d31');
+  block(34,40,53,4,'#817561'); block(34,41,53,1,'#c0a974');
+  for(i=0;i<8;i++){ block(35+i*7,37,4,4,'#756b59'); block(35+i*7,37,4,1,'#c0ad7b'); }
+  block(43,30,37,11,'#746a59'); block(46,27,31,4,'#92836a');
+  block(48,28,27,1,'#d1b982'); block(49,32,25,2,'#5b5549');
+  block(52,22,19,7,'#8a795f'); block(55,20,13,3,'#b69d6e');
+  block(57,16,9,5,'#aa9064'); block(59,14,5,3,'#d1b578');
+  block(61,11,1,4,'#34302b'); block(59,11,5,1,'#34302b');
+  block(58,34,4,4,'#e5bd69'); block(70,34,4,4,'#e5bd69');
+  block(59,43,6,9,'#342c27'); block(61,46,2,6,'#ad6843');
+  block(37,44,2,5,'#d9c18a'); block(80,44,2,5,'#d9c18a');
+  // Stone path leading to the gate.
+  block(57,52,10,2,'#77705d'); block(53,54,18,2,'#696653');
+  block(48,56,28,2,'#555747'); block(42,58,40,2,'#414b3c');
+  // Foreground grass tufts.
+  for(i=0;i<20;i++){
+    var gx=Math.floor(R()*W), gy=52+Math.floor(R()*19);
+    block(gx,gy,1,2,i%2?'#586443':'#707044');
+    if(i%3===0) block(gx+1,gy-1,1,1,'#84904d');
+  }
+  // Soldiers and standards frame the fortress without obscuring it.
+  function trooper(px,py,col,dark,scale){
+    var z=scale||1;
+    block(px,py+5*z,4*z,2*z,'#181d20');
+    block(px+z,py+2*z,3*z,3*z,col);
+    block(px+z,py+z,3*z,2*z,'#d7b994');
+    block(px,py,5*z,z,'#c0b58e');
+    block(px+4*z,py-2*z,z,9*z,'#c9c0a8');
+    block(px+z,py+3*z,3*z,z,dark);
+  }
+  var troopXs=[8,20,31,88,99,110];
+  for(i=0;i<troopXs.length;i++){
+    var red=i>=3, tc=red?'#a44f47':mix(stt.col,-0.08);
+    trooper(troopXs[i],53+(i%2),tc,mix(tc,-0.48),i===2||i===3?1:1);
+  }
+  block(17,43,1,16,'#282b2a'); block(13,42,8,7,stt.col);
+  block(14,43,6,1,mix(stt.col,0.42)); block(15,45,4,2,'#eee0b5');
+  block(101,39,1,17,'#282b2a'); block(94,40,7,7,'#a44f47');
+  block(95,41,5,1,'#d78b67'); block(96,43,3,2,'#e9d2a4');
+  // Subtle frame gives the small canvas a finished illustration edge.
+  block(0,0,W,1,'#a18a5d'); block(0,H-1,W,1,'#a18a5d');
+  block(0,0,1,H,'#a18a5d'); block(W-1,0,1,H,'#a18a5d');
+  cv.style.imageRendering='pixelated';
+}
+function unitTable(){
+  var h='<table><tr><th>'+t('th_unit')+'</th><th>'+t('th_move')+'</th><th>'+t('th_range')+'</th><th>'+t('th_atk')+'</th><th>'+t('th_hp')+'</th></tr>';
+  TKEYS.forEach(function(k){
+    var T=TYPES[k];
+    h+='<tr><td>'+T.n[LANG]+'</td><td>'+T.move+'</td><td>'+T.range+'</td><td>'+T.atk+'</td><td>'+T.hp+'</td></tr>';
+  });
+  return h+'</table>';
+}
+function skillTable(){
+  var h='<table><tr><th>'+t('th_skill')+'</th><th>'+t('th_cost2')+'</th><th>'+t('th_eff')+'</th></tr>';
+  ['fire','charge','rally','surprise'].forEach(function(k){
+    var S2=SKILLS[k];
+    h+='<tr><td>'+S2.n[LANG]+'</td><td>'+S2.cost+'</td><td>'+t('sk_'+k)+'</td></tr>';
+  });
+  return h+'</table>';
+}
+function devTable(){
+  var h='<table><tr><th>'+t('th_act')+'</th><th>'+t('th_cost')+'</th><th>'+t('th_eff')+'</th></tr>';
+  ['farms','town','walls','train','recruit','appease'].forEach(function(k){
+    h+='<tr><td>'+t('dev_'+k)+'</td><td>'+t('cost_gold')+' '+DEV[k].gold+(DEV[k].men?(' / '+t('cost_men')+' '+DEV[k].men):'')+'</td><td>'+t('devd_'+k)+'</td></tr>';
+  });
+  return h+'</table>';
+}
+function fillHelp(){
+  var el=document.getElementById('helpBody'); if(!el) return;
+  el.innerHTML=t('help_html').split('{units}').join(unitTable()).split('{skills}').join(skillTable()).split('{devs}').join(devTable());
+}
+function applyLangStatic(){
+  if(typeof document==='undefined'||!document.querySelectorAll) return;
+  var els=document.querySelectorAll('[data-i18n]');
+  for(var i=0;i<els.length;i++){
+    var k=els[i].getAttribute('data-i18n');
+    if(k) els[i].textContent=t(k);
+  }
+  document.documentElement.lang=(LANG==='ja')?'ja':(LANG==='zh'?'zh-Hans':'en');
+  var dt=document.title;
+  document.title=t('app_title');
+  var bs=document.getElementById('barBat'); if(bs){}
+  var langSel=document.getElementById('langSel'); if(langSel) langSel.value=LANG;
+  var diffSel=document.getElementById('diffSel'); if(diffSel) diffSel.value=PROF.diff;
+  soundLabels();
+}
+function setLang(l){
+  if(!I18N[l]) return;
+  LANG=l; PROF.lang=l; saveProfile();
+  applyLangStatic(); fillHelp(); buildTitleCards(); drawTitleArt();
+  if(S){ if(S.battleData&&BT){ renderBattle(); } else { renderCamp(); } }
+  sfx('ui');
+}
+function detectLang(){
+  if(PROF.lang&&I18N[PROF.lang]) return PROF.lang;
+  var nav=(typeof navigator!=='undefined'&&(navigator.language||navigator.userLanguage))||'ja';
+  nav=(''+nav).toLowerCase();
+  if(nav.indexOf('zh')===0) return 'zh';
+  if(nav.indexOf('ja')===0) return 'ja';
+  return 'en';
+}
+function flashSaved(text){
+  var el=document.getElementById('saveTag'); if(!el) return;
+  el.textContent=text; el.classList.remove('hidden');
+  if(typeof setTimeout==='function'){
+    if(flashSaved._t) clearTimeout(flashSaved._t);
+    flashSaved._t=setTimeout(function(){ el.classList.add('hidden'); },1400);
+  }
+}
+function newGame(){
+  closeOverlay('bootOv'); closeOverlay('endOv');
+  PROF.state=SEL_STATE; saveProfile();
+  newCampaign(SEL_STATE,PROF.diff);
+  BT=null;
+  showScreen('scrCamp');
+  renderCamp(); fitMap();
+  sfx('season');
+  saveGame(true);
+}
+function resumeGame(){
+  closeOverlay('bootOv');
+  if(!S) { newGame(); return; }
+  buildAdj(); snapshotInitial();
+  if(S.battleData){
+    BT=S.battleData;
+    showScreen('scrBattle'); buildBoard(); renderBattle();
+  }else{
+    BT=null;
+    showScreen('scrCamp'); renderCamp(); fitMap();
+  }
+  if(S.over) showGameOver(S.over);
+}
+function toTitle(){
+  S&&saveGame(true);
+  SEL_STATE=PROF.state;
+  showScreen('scrTitle');
+  buildTitleCards(); drawTitleArt();
+}
+function wire(){
+  function on(id,fn){ var e=document.getElementById(id); if(e) e.addEventListener('click',fn); }
+  on('startBtn',function(){ unlockAudio(); sfx('ui'); newGame(); });
+  on('contBtn',function(){ var sv=loadSave(); if(sv){ S=sv; resumeGame(); } else newGame(); });
+  on('wipeBtnT',function(){ wipeAll(); S=null; BT=null; buildTitleCards(); flashSaved(t('wipe_done')); sfx('ui'); });
+  on('bootResume',function(){ resumeGame(); });
+  on('bootNew',function(){ closeOverlay('bootOv'); showScreen('scrTitle'); });
+  on('endAgain',function(){ closeOverlay('endOv'); newGame(); });
+  on('endTitleBtn',function(){ closeOverlay('endOv'); S=null; BT=null; toTitle(); });
+  on('endSeason',function(){ unlockAudio(); endSeason(); });
+  on('saveBtn',function(){ saveGame(false); });
+  on('titleBack',function(){ toTitle(); });
+  on('helpBtn',function(){ fillHelp(); openOverlay('helpOv'); sfx('ui'); });
+  on('closeHelp',function(){ closeOverlay('helpOv'); });
+  on('evOk',function(){ closeOverlay('evOv'); drainNotices(); });
+  on('sfxBtn',function(){ setSfx(!SND.on); });
+  on('bgmBtn',function(){ setBgm(!PROF.bgm); });
+  on('rotateGo',function(){ document.body.classList.add('force'); fitMap(); fit(); });
+  var ls=document.getElementById('langSel');
+  if(ls) ls.addEventListener('change',function(){ setLang(this.value); });
+  var ds=document.getElementById('diffSel');
+  if(ds) ds.addEventListener('change',function(){ PROF.diff=this.value; saveProfile(); var dn=document.getElementById('diffNote'); if(dn) dn.textContent=t('diff_note_'+PROF.diff); });
+  on('endBtn',function(){ playerEndTurn(); });
+  on('undoBtn',function(){ undoBattle(); });
+  on('retreatBtn',function(){ retreatBattle(); });
+  on('skillBtn',function(){
+    if(!BT||BT.over) return;
+    if(!skillReady(BT,BT.meSide)){ sfx('err'); return; }
+    BT.skill=!BT.skill; BT.sel=null;
+    sfx('ui'); renderBattle();
+  });
+  var bd=document.getElementById('board');
+  if(bd) bd.addEventListener('click',function(ev){
+    var el=ev.target;
+    while(el&&el!==bd&&!(el.getAttribute&&el.getAttribute('data-x')!==null)) el=el.parentNode;
+    if(!el||el===bd||!el.getAttribute) return;
+    var x=+el.getAttribute('data-x'), y=+el.getAttribute('data-y');
+    if(isNaN(x)||isNaN(y)) return;
+    boardTap(x,y);
+  });
+  on('setupGo',function(){
+    var commit=S.ui.commit, gen=S.ui.gen||null;
+    startBattleFromSetup(commit,gen);
+  });
+  on('setupCancel',function(){ S.ui.pending=null; closeOverlay('setupOv'); renderCamp(); });
+  var mc=document.getElementById('mapc');
+  if(mc){
+    mc.addEventListener('click',onMapTap);
+    mc.addEventListener('mousemove',onMapHover);
+    mc.addEventListener('mouseleave',function(){ var tp=document.getElementById('mapTip'); if(tp) tp.style.display='none'; });
+  }
+  if(typeof window!=='undefined'&&window.addEventListener){
+    window.addEventListener('resize',function(){ if(SCREEN==='scrCamp') fitMap(); if(SCREEN==='scrBattle') fit(); });
+    window.addEventListener('orientationchange',function(){ setTimeout(function(){ fitMap(); fit(); },220); });
+    window.addEventListener('pagehide',function(){ if(S&&!S.over) saveGame(true); });
+    window.addEventListener('keydown',function(ev){
+      var k=ev.key;
+      if(SCREEN==='scrBattle'){
+        if(k===' '){ ev.preventDefault&&ev.preventDefault(); playerEndTurn(); }
+        else if(k==='u'||k==='U') undoBattle();
+        else if(k==='Escape'){ if(BT){ BT.sel=null; BT.skill=null; renderBattle(); } }
+      }else if(SCREEN==='scrCamp'){
+        if(k==='n'||k==='N') endSeason();
+        else if(k==='Escape'){ S.ui.mode=null; renderCamp(); }
+      }
+      if(k==='s'||k==='S'){ if(S&&!S.over) saveGame(false); }
+    });
+  }
+  if(typeof document!=='undefined'&&document.addEventListener){
+    document.addEventListener('pointerdown',function(){ unlockAudio(); },{once:true});
+  }
+}
+function boot(){
+  loadProfile();
+  LANG=detectLang();
+  SND.on=(PROF.sound!==false);
+  SEL_STATE=findState(PROF.state)?PROF.state:'wei';
+  buildAdj(); snapshotInitial(); buildWorld();
+  applyLangStatic(); fillHelp(); buildTitleCards(); drawTitleArt(); soundLabels(); wire();
+  showScreen('scrTitle');
+  var sv=loadSave();
+  if(sv&&sv.me&&sv.st&&sv.st[sv.me]&&sv.st[sv.me].alive){
+    S=sv; buildAdj(); snapshotInitial();
+    var bi=document.getElementById('bootInfo');
+    if(bi) bi.textContent=t('boot_info',{s:stateName(S.me),y:S.year,sea:t('sea_'+SEASONS[S.season]),c:citiesOf(S.me).length});
+    openOverlay('bootOv');
+  }
+}
+if(typeof document!=='undefined'&&typeof boot==='function'&&!window.__WSR_TESTING__) boot();
+
+/* テスト用に内部 API を公開（ブラウザでは何もしない） */
+if(typeof module!=='undefined'&&module.exports){
+  module.exports={
+    STATES:STATES,CITIES:CITIES,LINKS:LINKS,GENERALS:GENERALS,TYPES:TYPES,TERRAIN:TERRAIN,CNT:CNT,DIFF:DIFF,SKILLS:SKILLS,
+    I18N:I18N,t:t,setLang:function(l){LANG=l;},getLang:function(){return LANG;},
+    newCampaign:newCampaign,buildAdj:buildAdj,snapshotInitial:snapshotInitial,
+    st:st,citiesOf:citiesOf,totalGarr:totalGarr,calcPrestige:calcPrestige,polMax:polMax,
+    seasonIncome:seasonIncome,upkeepOf:upkeepOf,applyIncome:applyIncome,
+    dev:dev,appeaseAct:appeaseAct,moveArmy:moveArmy,envoyAct:envoyAct,peaceAct:peaceAct,allianceAct:allianceAct,
+    declareWar:declareWar,endSeason:endSeason,checkVictory:checkVictory,aiTurn:aiTurn,
+    makeBattle:makeBattle,simBattle:simBattle,aiSide:aiSide,bRoundEnd:bRoundEnd,bCheckEnd:bCheckEnd,
+    useSkill:useSkill,skillReady:skillReady,skillOf:skillOf,bAttack:bAttack,bMove:bMove,bReach:bReach,bTargets:bTargets,
+    aliveStates:aliveStates,gensOf:gensOf,gensAt:gensAt,genData:genData,genQuality:genQuality,cityQuality:cityQuality,
+    powerOf:powerOf,warScore:warScore,upkeepOf:upkeepOf,initMorale:initMorale,deployInitial:deployInitial,addUnit:addUnit,
+    bKill:bKill,bRoundEnd:bRoundEnd,bCheckEnd:bCheckEnd,aiUseSkill:aiUseSkill,aiBestGeneral:aiBestGeneral,
+    aiActUnit:aiActUnit,costMap:costMap,threatAt:threatAt,bestAttackFrom:bestAttackFrom,
+    genBattleMap:genBattleMap,ensurePaths:ensurePaths,walkableBetween:walkableBetween,qualityOf:qualityOf,
+    captureGeneral:captureGeneral,annexState:annexState,showInvasionNotice:showInvasionNotice,
+    deploymentSpots:deploymentSpots,battleUnitCount:battleUnitCount,defaultArmyComp:defaultArmyComp,dmgOf:dmgOf,rollDmg:rollDmg,applyBattleResult:applyBattleResult,
+    genBattleMap:genBattleMap,ensurePaths:ensurePaths,walkableBetween:walkableBetween,
+    getS:function(){return S;},setS:function(o){S=o;},getBT:function(){return BT;},setBT:function(o){BT=o;},
+    saveGame:saveGame,loadSave:loadSave,wipeAll:wipeAll,saveProfile:saveProfile,getPROF:function(){return PROF;},
+    setProf:function(o){ for(var k in o) PROF[k]=o[k]; },
+    lsGet:lsGet,lsSet:lsSet,lsDel:lsDel,LS_S:LS_S,LS_P:LS_P,
+    setupGens:setupGens,legalTargets:legalTargets,canAttack:canAttack,
+    openSetup:openSetup,startBattleFromSetup:startBattleFromSetup,finishBattleUI:finishBattleUI,
+    startBattle:startBattle,startPendingBattle:startPendingBattle,
+    showBattleResult:showBattleResult,showEvents:showEvents,drainNotices:drainNotices,showGameOver:showGameOver,
+    buildBoard:buildBoard,renderBattle:renderBattle,renderCamp:renderCamp,renderMap:renderMap,fit:fit,fitMap:fitMap,
+    renderSetup:renderSetup,undoBattle:undoBattle,retreatBattle:retreatBattle,retreatBattle_:retreatBattle,
+    cityName:cityName,stateName:stateName,genName:genName,findCity:findCity,findState:findState,
+    linkInfo:linkInfo,neighbors:neighbors,adjacentPair:adjacentPair,warOf:warOf,atWar:atWar,allied:allied,relOf:relOf,
+    getSCREEN:function(){return SCREEN;},getSND:function(){return SND;},getLANG:function(){return LANG;},
+    mapPick:mapPick,buildWorld:buildWorld,getWORLD:function(){return WORLD;},
+    spriteUri:spriteUri,SFX:SFX,sfx:sfx,setSfx:setSfx,getSND:function(){return SND;},
+    unitById:unitById,hlSets:hlSets,boardTap:boardTap,playerEndTurn:playerEndTurn,
+    boot:boot,wire:wire,newGame:newGame,resumeGame:resumeGame
+  };
+}
+</script>
+</body>
+</html>
