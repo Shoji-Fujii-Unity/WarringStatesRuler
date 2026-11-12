@@ -21,7 +21,7 @@ for (const k of Object.keys(art)) {
 }
 console.log(bad ? 'grid problems: ' + bad : 'grid OK: all sprites 12x12');
 
-const PAL = { o: '#161018', s: '#e8c39a', m: '#b8bfc7', w: '#7b5230', k: '#3c2c22', h: '#8a5c33', g: '#e0b95a', d: '#000' };
+const PAL = { o: '#141016', s: '#edc89e', n: '#c99d73', m: '#d4dce6', i: '#7e8896', w: '#855834', k: '#3d2b20', h: '#946338', f: '#b88454', e: '#5c3a1e', g: '#ebc465', r: '#d94c43', b: '#dedad2', d: '#000' };
 function mix(hex, f) {
   const n = parseInt(hex.slice(1), 16);
   let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;

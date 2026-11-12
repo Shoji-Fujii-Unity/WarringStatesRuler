@@ -450,6 +450,42 @@ section('都市陥落と併合');
   ok(G.citiesOf('wei').length > 4, '併合で領土が増える (' + G.citiesOf('wei').length + ')');
 })();
 
+section('出兵時の外交チェック');
+(function () {
+  G.newCampaign('zhao', 'normal', 2718);
+  G.snapshotInitial();
+  const S = G.getS();
+  S.st.zhao.pol = 9;
+  const pair = G.CITIES.flatMap((city) => {
+    if (S.cities[city.k].owner !== S.me || S.cities[city.k].garr < 8) return [];
+    return G.neighbors(city.k)
+      .map((link) => [city.k, link.to])
+      .filter(([, to]) => S.cities[to].owner !== S.me && S.st[S.cities[to].owner].alive);
+  })[0];
+  ok(!!pair, '外交テスト用の国境都市がある');
+  if (!pair) return;
+  const [from, to] = pair;
+  const foe = S.cities[to].owner;
+  const warKey = [S.me, foe].sort().join('|');
+
+  ok(G.canAttack(from, to) === G.t('err_nowar'), '和平中は出兵できない');
+  S.ui.sel = from;
+  G.renderCamp();
+  ok(!getEl('cityAct').innerHTML.includes(G.t('act_attack')), '和平中は出兵ボタンを表示しない');
+  G.openSetup(from, to);
+  ok(!S.ui.pending, '和平中は出兵編成を開けない');
+
+  S.war[warKey] = { s: 'ally', t: 0 };
+  ok(G.canAttack(from, to) === G.t('err_nowar'), '同盟中は出兵できない');
+  S.war[warKey] = { s: 'truce', t: S.turn + 3 };
+  ok(G.canAttack(from, to) === G.t('err_truce'), '休戦中は出兵できない');
+
+  G.declareWar(S.me, foe, false);
+  ok(G.canAttack(from, to) === null, '宣戦後は出兵できる');
+  G.renderCamp();
+  ok(getEl('cityAct').innerHTML.includes(G.t('act_attack')), '交戦中は出兵ボタンを表示する');
+})();
+
 section('出兵編成と戦法');
 (function () {
   G.newCampaign('zhao', 'hard', 31337);
@@ -579,6 +615,8 @@ section('侵攻戦（あなたが守り手）');
   ok(found.to === pair[1] || found.to !== pair[0], '侵攻先は私の都市', found.to);
   const noticeKeys = (S.notices || []).map((n) => n.k);
   ok(noticeKeys.indexOf('ev_invasion') >= 0, '侵攻の報せが通知に入る', noticeKeys.join(','));
+  S.st[me].gold = 100; S.st[me].pol = 9;
+  ok(G.reformArmy(pair[1], { inf: 0, arc: 10, cav: 0, spc: 0 }), '守備軍の兵科も国政編成を反映');
   ok(G.startPendingBattle(), '侵攻戦を開始');
   const B = G.getBT();
   ok(!!B, '戦闘オブジェクト生成');
@@ -586,6 +624,8 @@ section('侵攻戦（あなたが守り手）');
   ok(B.meSide === 'e', '私は守り手', B.meSide);
   ok(B.att === found.att && B.def === me, '攻め手＝AI／守り手＝私');
   ok(B.city === found.to, '戦場は攻め込まれた都市');
+  ok(B.units.filter((u) => u.side === B.meSide && u.type === 'arc').length === B.cap[B.meSide],
+    '守備側にも国政で編成した弓兵比率を適用');
   checkBattle(B, 'invade init');
   const t0 = B.turn;
   G.playerEndTurn();
@@ -662,28 +702,55 @@ section('UI 起動と画面遷移（DOM スタブ）');
     for (const b of G.CITIES) {
       if (S2.cities[b.k].owner === S2.me) continue;
       if (!G.linkInfo(a.k, b.k)) continue;
-      if (G.canAttack(a.k, b.k)) continue;
       pair = [a.k, b.k]; break;
     }
     if (pair) break;
   }
   ok(!!pair, '出兵できる隣接戦線がある ' + (pair ? pair.join('→') : ''));
   if (pair) {
+    G.declareWar(S2.me, S2.cities[pair[1]].owner, false);
     const g0 = S2.cities[pair[0]].garr;
+    S2.st[S2.me].gold = 100;
+    S2.st[S2.me].pol = 9;
+    const gold0 = S2.st[S2.me].gold;
+    S2.ui.sel = pair[0];
+    G.renderCamp();
+    ok(getEl('cityAct').innerHTML.indexOf(G.t('act_army')) >= 0, '戦略画面に軍編成アクションを表示');
+    G.openArmySetup(pair[0]);
+    ok(S2.ui.setupMode === 'army' && getEl('compPanel').innerHTML.indexOf('data-comp="inf"') >= 0,
+      '戦略レイヤーで兵科を編集できる');
+    const compInputs = getEl('compPanel').querySelectorAll('input[data-comp]');
+    const spearInput = compInputs.find((input) => input.getAttribute('data-comp') === 'spc');
+    if (spearInput) { spearInput.value = '10'; spearInput.dispatch('input'); }
+    G.startBattleFromSetup(0, null);
+    ok(S2.st[S2.me].gold === gold0 - 20 && S2.st[S2.me].pol === 8, '軍編成に金20・政令1を消費');
     G.openSetup(pair[0], pair[1]);
     ok(!!S2.ui.pending, '出兵プランが開く');
     ok(getEl('setupBody').innerHTML.indexOf('commitRange') >= 0, '出兵数スライダー生成');
-    ok(getEl('compPanel').innerHTML.indexOf('data-comp="inf"') >= 0, '出兵兵科の入力欄を表示');
+    ok(getEl('compPanel').innerHTML.indexOf('data-comp=') < 0, '出兵時に兵科を編集できない');
     const committed = S2.ui.commit;
     const plannedCount = G.battleUnitCount(S2.ui.commit);
-    const compInputs = getEl('compPanel').querySelectorAll('input[data-comp]');
-    const spearInput = compInputs.find((input) => input.getAttribute('data-comp') === 'spc');
-    if (spearInput) { spearInput.value = String(plannedCount); spearInput.dispatch('input'); }
     G.startBattleFromSetup(S2.ui.commit, S2.ui.gen);
     const B = G.getBT();
     ok(!!B && B.city === pair[1], '戦闘開始', B && B.city);
     const spearCount = B && B.units.filter((u) => u.side === B.meSide && u.type === 'spc').length;
-    ok(!!B && spearCount === plannedCount, '戦略画面で選んだ槍兵編成が戦闘に反映 (' + spearCount + '/' + plannedCount + ')');
+    ok(!!B && spearCount === plannedCount, '国政で編成した槍兵比率が戦闘に反映 (' + spearCount + '/' + plannedCount + ')');
+    const firstUnit = B && B.units.find((u) => u.side === B.meSide);
+    ok(!!firstUnit && !firstUnit.acted, '開戦時の味方部隊は行動可能');
+    if (firstUnit) {
+      const start = { x: firstUnit.x, y: firstUnit.y };
+      const destinations = Object.keys(G.bReach(B, firstUnit)).filter((key) => key !== start.x + ',' + start.y);
+      G.boardTap(start.x, start.y);
+      if (destinations.length) {
+        const [x, y] = destinations[0].split(',').map(Number);
+        G.boardTap(x, y);
+        const moved = B.units.find((u) => u.id === firstUnit.id);
+        ok(!!moved && (moved.x !== start.x || moved.y !== start.y), '初ターンに部隊を移動できる');
+        G.undoBattle();
+      } else {
+        ok(false, '初ターンに移動可能なマスがある');
+      }
+    }
     ok(G.getSCREEN() === 'scrBattle', '戦術画面へ遷移', G.getSCREEN());
     ok(getEl('board').children.length === B.cols * B.rows, '盤面セル数=' + getEl('board').children.length + ' (' + B.cols + 'x' + B.rows + ')');
     ok(getEl('batSides').innerHTML.length > 60, '戦闘HUDを描画');
@@ -713,6 +780,18 @@ section('UI 起動と画面遷移（DOM スタブ）');
         G.boardTap(+p2[0], +p2[1]);
         const mu = G.getBT().units.filter((u) => u.id === mine.id)[0];
         ok(!!mu && mu.x === +p2[0] && mu.y === +p2[1], 'タップで兵が移動する');
+        if (mu) {
+          const movedTo = { x: mu.x, y: mu.y };
+          const further = Object.keys(G.bReach(G.getBT(), mu)).find((k) => k !== movedTo.x + ',' + movedTo.y);
+          if (further) {
+            const [x, y] = further.split(',').map(Number);
+            G.boardTap(x, y);
+            const afterSecondMove = G.getBT().units.find((u) => u.id === mine.id);
+            ok(afterSecondMove.x === movedTo.x && afterSecondMove.y === movedTo.y, '同じターンに2回目の移動はできない');
+          } else {
+            ok(false, '連続移動テスト用の次のマスがある');
+          }
+        }
       }
       G.undoBattle();
       const B3 = G.getBT();
